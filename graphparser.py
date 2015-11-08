@@ -51,6 +51,7 @@ testGraph.add_edge(5, 7, {})   # tasty -> children
 testGraph.add_edge(6, 7, {})   # little -> children
 testGraph.add_edge(7, 4, {})   # children -> ate
 
+
 # we need a function that will take a sentences, compute a fully
 # connected graph, and put features on edges
 def computeFullGraph(inputGraph):
@@ -77,14 +78,12 @@ def computeFullGraph(inputGraph):
 #   {'w_pair=*root*_tasty': 1.0, 'p_pair=*root*_JJ': 1.0, 'dist=5': 1.0, 'weight': 0.0}
 
 
-
 # we need a function that will score the edges according to our
 # current weight vector:
 def computeGraphEdgeWeights(graph, weights):
     for i,j in graph.edges_iter():
         graph[i][j]['weight'] = 0.   # make sure it doesn't make its way into the dot product
-        # TODO: your code here
-        graph[i][j]['weight'] = something_you_need_to_compute
+        graph[i][j]['weight'] = weights.dotProduct(graph[i][j])
 
         
 # once we have a graph with weights on the edges, we need to be able
@@ -101,6 +100,7 @@ def predictWeightedGraph(graph):
         graph[i][j]['weight'] = - graph[i][j]['weight']
     return mst
 
+
 # compute number of mistakes
 def numMistakes(true, pred):
     err = 0.
@@ -109,21 +109,23 @@ def numMistakes(true, pred):
         err += 1
     return err
 
+
 # now, given a graph (which has features), a true tree and a predicted
 # tree, we want to update our weights
 def perceptronUpdate(weights, G, true, pred):
     # first, iterate over all the edges in the predicted tree that
     # aren't in the true tree -- hint, use weights.update
     for i,j in pred.edges_iter():
-        # TODO: your code here
-        pass
-        
+        if true.has_edge(i,j) or true.has_edge(j,i): continue 
+        weights.update(G[i][j], -1) 
+
     # first, iterate over all the edges in the true tree that
     # aren't in the predicted tree -- hint, use weights.update
     for i,j in true.edges_iter():
-        # TODO: your code here
-        pass
-    
+        if pred.has_edge(i,j) or pred.has_edge(j,i): continue 
+        weights.update(G[i][j],1) 
+
+
 # now we can finally put it all together to make a single update on a
 # single example
 def runOneExample(weights, trueGraph, quiet=False):
@@ -131,8 +133,9 @@ def runOneExample(weights, trueGraph, quiet=False):
     G = computeFullGraph(trueGraph)
     computeGraphEdgeWeights(G, weights)
 
-    # make a prediction
-    predGraph = 0 # TODO
+    # make a prediction : 
+    predGraph = predictWeightedGraph(G)
+    computeGraphEdgeWeights(predGraph, weights)
 
     # compute the error
     err = numMistakes(trueGraph, predGraph)
@@ -145,14 +148,12 @@ def runOneExample(weights, trueGraph, quiet=False):
         print ''
     
     # if necessary, make an update
-    # TODO
+    if numMistakes(trueGraph, predGraph) > 0:
+        perceptronUpdate(weights, G, trueGraph, predGraph)
 
     return err
 
 
-# we can run this with:
-# >>> weights = Weights()
-# >>> runOneExample(weights, testGraph)
 # error = 6.0 	pred = ( *root* <-> the ) ( *root* <-> hairy ) ( *root* <-> monster ) ( *root* <-> ate ) ( *root* <-> tasty ) ( *root* <-> little ) ( *root* <-> children ) 
 # >>> runOneExample(weights, testGraph)
 # error = 2.0 	pred = ( *root* <-> the ) ( the <-> monster ) ( hairy <-> monster ) ( hairy <-> children ) ( monster <-> ate ) ( tasty <-> children ) ( little <-> children ) 
@@ -167,11 +168,7 @@ def runOneExample(weights, trueGraph, quiet=False):
 # see how well you can do!!!
 #
 # you can run, for instance:
-# weights = Weights()
-# >>> for iteration in range(5):
-# ...     totalErr = 0.
-# ...     for G in iterCoNLL('en.tr100'): totalErr += runOneExample(weights, G, quiet=True)
-# ...     print totalErr
+
 # ... 
 # 1891.0
 # 1413.0
@@ -211,3 +208,10 @@ def iterCoNLL(filename):
     if G != None:
         yield G
     h.close()
+
+
+weights = Weights()
+for iteration in range(5):
+         totalErr = 0.
+         for G in iterCoNLL('en.tr100'): totalErr += runOneExample(weights, G, quiet=True)
+         print totalErr

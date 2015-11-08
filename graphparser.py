@@ -80,7 +80,9 @@ def computeFullGraph(inputGraph):
 
 # we need a function that will score the edges according to our
 # current weight vector:
+
 def computeGraphEdgeWeights(graph, weights):
+    
     for i,j in graph.edges_iter():
         graph[i][j]['weight'] = 0.   # make sure it doesn't make its way into the dot product
         graph[i][j]['weight'] = weights.dotProduct(graph[i][j])
@@ -130,12 +132,16 @@ def perceptronUpdate(weights, G, true, pred):
 # single example
 def runOneExample(weights, trueGraph, quiet=False):
     # first, compute the full graph and compute edge weights
+    # add features to the edges
+    # this also removes any other info and edges from the trueGraph. It only keeps the nodes and assigns features to them, removing any previous edges.
     G = computeFullGraph(trueGraph)
+    #computeGraphEdgeWieghts is calculating the y dash by multiplying featurers with weight vectors and only those edges are kept that have the maximum total y dash.
     computeGraphEdgeWeights(G, weights)
-
-    # make a prediction : 
+    
+    # make a prediction:
     predGraph = predictWeightedGraph(G)
-    computeGraphEdgeWeights(predGraph, weights)
+    # computeGraphEdgeWeights(predGraph, weights)
+    # removed the above line because it is not required. the weights are already updated to the most current value by the computerGraphEdgeWeights(G,weights) commmand
 
     # compute the error
     err = numMistakes(trueGraph, predGraph)
@@ -145,10 +151,13 @@ def runOneExample(weights, trueGraph, quiet=False):
         print 'error =', err, '\tpred =',
         for i,j in predGraph.edges_iter():
             print '(', trueGraph.node[i]['word'], '<->', trueGraph.node[j]['word'], ')',
+            #print '(', predGraph.node[i]['word'], '<->', predGraph.node[j]['word'], ')',
+            #we cannot use predGraph because it strips away the word,POS and any edges from the trueGraph. predGraph only contains the nodes from the trueGraph.
         print ''
     
     # if necessary, make an update
-    if numMistakes(trueGraph, predGraph) > 0:
+    #if numMistakes(trueGraph, predGraph) > 0:
+    if err > 0:
         perceptronUpdate(weights, G, trueGraph, predGraph)
 
     return err
@@ -211,6 +220,7 @@ def iterCoNLL(filename):
 
 
 weights = Weights()
+print weights
 for iteration in range(5):
          totalErr = 0.
          for G in iterCoNLL('en.tr100'): totalErr += runOneExample(weights, G, quiet=True)

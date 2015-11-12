@@ -88,7 +88,7 @@ def computeGraphEdgeWeights(graph, weights):
         graph[i][j]['weight'] = weights.dotProduct(graph[i][j])
 
         
-# once we have a graph with weights on the edges, we need to be able
+# once we have a graph with weights on the edgegss, we need to be able
 # to make a prediction (i.e., compute the MST):
 def predictWeightedGraph(graph):
     # need to negate all the edge weights because we want maximum
@@ -219,7 +219,7 @@ def iterCoNLL(filename):
     h.close()
 
 
-weights = Weights()d
+weights = Weights()
 print weights
 for iteration in range(5):
          totalErr = 0.

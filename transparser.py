@@ -50,30 +50,34 @@ def iterCoNLL(filename):
 def convertToTransitions(InputGraph):
     # create a new graph to return
     out = nx.Graph()
-    bufferDep = []
-    stacksDep = ['*root*']
+    bufferDepG = []
+    stacksDepG = [0] # 0 corresponds to 'root'
     for i in inputGraph.nodes():
-        bufferDep.append(inputGraph.node[i]['id'])
-    stackTop = stacksDep[0]
-    bufferTop = bufferDep[0]
+        bufferDepG.append(i+1) # because i starts from 0 which is 'root'
+
+    stackTop = stacksDepG[0]
+    bufferTop = bufferDepG[0]
     # TODO implement buffer and stack
 
-    while bufferDep!=empty:
-        if inputGraph.node[stacksDep[0]]['head'] == bufferDep[0]:
-            transition = 'r'
-            # r is for right transition
-            bufferDep[0] = stacksDep[0]
-            stacksDep.pop
-
-        elif inputGraph.node[bufferDep[0]]['head'] == stacksDep[0]:
+    while len(bufferDepG):
+        # if head of the top of the stack is the top of the buffer
+        if inputGraph.node[stacksDepG[0]]['head'] == bufferTop:
             transition = 'l'
             # l is for left transition
-            stacksDep.pop
+            stacksDepG.pop[0]
+
+        # if the top of the stack is the head of the first element of the buffer
+        elif inputGraph.node[bufferDepG[0]]['head'] == stacksDepG[0]:
+            transition = 'r'
+            # r is for right transition
+            bufferDepG[0] = stacksDepG[0]
+            stacksDepG.pop[0]
+
         else:
             transition = 's'
             # s is for shift transition
-            stacksDep.push[bufferDep[0]]
-            bufferDep.pop
+            stacksDepG.insert[0,bufferDepG[0]]
+            bufferDepG.pop[0]
 
     # for each pair of words (nodes) in the input graph, create an
     # edge in the output graph, on which we write some features
@@ -89,9 +93,9 @@ def convertToTransitions(InputGraph):
                         'cpos_stack_top=' + f['cpos']: 1.,
                         'cpos_buffer_head=' + g['cpos']: 1.,
                         'w_pair=' + f['word'] + '_' + g['word']: 1.,
-                        'cp_pair=' + f['cpos' ] + '_' + g['cpos' ]: 1.}
+                        'cp_pair=' + f['cpos'] + '_' + g['cpos']: 1.}
             # TODO is graph output the correct form of output
 
-            out.add_edge(f['id'], g['id'], feats)
+            out.add_edge(stackTop, bufferTop, feats)
                       
     return out

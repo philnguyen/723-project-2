@@ -219,7 +219,7 @@ def iterCoNLL(filename):
     h.close()
 
 
-weights = Weights()
+weights = Weights()d
 print weights
 for iteration in range(5):
          totalErr = 0.

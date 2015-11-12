@@ -18,7 +18,23 @@ for arg in sys.argv:
 def predictWeightedGraph(graph):
     for i,j in graph.edges_iter():
         # apply averaged perceptron algorithm for multiclass classification of the transition 'r' 'l' 's'. remove the feature 'transition' from the edge
-        weights.dotProduct(graph[i][j])
+        features = graph[i][j]
+        trueTransition = features[6]
+        features = features.pop[6]
+
+        # to remove the transition state from the features
+        yR = weightsR.dotProduct()
+        yL = weightsL.dotProduct()
+        yS = weightsS.dotProduct()
+        predTransition = ''
+        predTransitionVal = max(yR,yL,yS)
+        if predTransitionVal == yR:
+            predTransition = 'r'
+        elif predTransitionVal == yL:
+            predTransition = 'l'
+        else: predTransition = 's'
+        graph[i][j]['predTransition'] = ''
+        graph[i][j]['predTransition'] = predTransition
 
 
 def runOneExample(weights, TrueGraph):

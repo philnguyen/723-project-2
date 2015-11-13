@@ -41,8 +41,8 @@ def predictWeightedGraph(graph):
     for i,j in graph.edges_iter():
         # apply averaged perceptron algorithm for multiclass classification of the transition 'r' 'l' 's'. remove the feature 'transition' from the edge
         features = graph[i][j]
-        trueTransition = features[6]
-        features = features.pop[6]
+        trueTransition = features['transition']
+        del features['transition']
 
         # to remove the transition state from the features
         yR = weightsR.dotProduct(features)
@@ -57,11 +57,13 @@ def predictWeightedGraph(graph):
         else: predTransition = 's'
         graph[i][j]['predTransition'] = ''
         graph[i][j]['predTransition'] = predTransition
+    return graph
 
 def numMistakes(trueGraph, predGraph):
+    # remove trueGraph as it is not required
     err = 0.
-    for i,j in trueGraph.edges_iter:
-        if predGraph[i][j]['predTransition'] == trueGraph[i][j]['transition']:
+    for i,j in predGraph.edges_iter:
+        if predGraph[i][j]['predTransition'] != trueGraph[i][j]['transition']:
             err += 1
     return err
 
@@ -71,14 +73,16 @@ def perceptronUpdate(weights, G, trueGraph, predGraph):
         weights.update(G[i][j], -1)
 
 
-def runOneExample(weights, trueGraph):
+def runOneExample(weightsR, weightsL, weightsS, trueGraph):
     G = convertToTransitions(trueGraph)
 
     predGraph = predictWeightedGraph(G)
     err = numMistakes(G,predGraph)
 
     if err > 0:
-        perceptronUpdate(weights, G, trueGraph, predGraph)
+        perceptronUpdate(weightsR, weightsL, weightsS, predGraph)
+
+    return err
 
 
 def convertToTransitions(inputGraph):
@@ -98,31 +102,31 @@ def convertToTransitions(inputGraph):
         if inputGraph.node[stacksDepG[0]]['head'] == bufferTop:
             transition = 'l'
             # l is for left transition
-            stacksDepG.pop[0]
+            stacksDepG.pop()
 
         # if the top of the stack is the head of the first element of the buffer
         elif inputGraph.node[bufferDepG[0]]['head'] == stacksDepG[0]:
             transition = 'r'
             # r is for right transition
             bufferDepG[0] = stacksDepG[0]
-            stacksDepG.pop[0]
+            stacksDepG.pop()
 
         else:
             transition = 's'
             # s is for shift transition
-            stacksDepG.insert[0,bufferDepG[0]]
-            bufferDepG.pop[0]
+            stacksDepG.insert(0,bufferDepG[0])
+            bufferDepG.pop()
 
         f = inputGraph.node[stackTop] # get node information for i (eg {word: blah, pos: blah})
         g = inputGraph.node[bufferTop] # get node information for j
 
-        feats = {   'stack_top=' + stackTop: 1.,
-                    'buffer_top' + bufferTop: 1.,
+        feats = {   'stack_top=' + f['word']: 1.,
+                    'buffer_top' + g['word'] : 1.,
                     'cpos_stack_top=' + f['cpos']: 1.,
                     'cpos_buffer_head=' + g['cpos']: 1.,
                     'w_pair=' + f['word'] + '_' + g['word']: 1.,
                     'cp_pair=' + f['cpos'] + '_' + g['cpos']: 1.,
-                    'transition='+transition: 1.}
+                    'transition': transition}
             # TODO is graph output the correct form of output
 
         out.add_edge(stackTop, bufferTop, feats)
@@ -161,11 +165,11 @@ def iterCoNLL(filename):
     h.close()
 
 
+weightsR = Weights()
+weightsL = Weights()
+weightsS = Weights()
 
-
-weights = Weights()
-print weights
 for iteration in range(5):
          totalErr = 0.
-         for G in iterCoNLL(inputTestSet): totalErr += runOneExample(weights, G)
+         for G in iterCoNLL(inputTrainSet): totalErr += runOneExample(weightsR, weightsL, weightsS, G)
          print totalErr

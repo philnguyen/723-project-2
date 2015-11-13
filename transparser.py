@@ -1,4 +1,5 @@
 import networkx as nx
+import sys
 
 for arg in sys.argv:
     inputTrainSet = sys.argv[1]
@@ -13,7 +14,28 @@ for arg in sys.argv:
     # train a classifier on this training data
     # learn bpnn model for transitions. hmm how would you predict transitions. you can predict the head number or word for a particular word but how do you predict transitions
     # learn what is the head of one word and if it is the first word in the buffer then do a right transition
+class Weights(dict):
+    # default all unknown feature values to zero
+    def __getitem__(self, idx):
+        if self.has_key(idx):
+            return dict.__getitem__(self, idx)
+        else:
+            return 0.
 
+    # given a feature vector, compute a dot product
+    def dotProduct(self, x):
+        dot = 0.
+        for feat,val in x.iteritems():
+            dot += val * self[feat]
+        return dot
+
+    # given an example _and_ a true label (y is +1 or -1), update the
+    # weights according to the perceptron update rule (we assume
+    # you've already checked that the classification is incorrect
+    def update(self, x, y):
+        for feat,val in x.iteritems():
+            if val != 0.:
+                self[feat] += y * val
 
 def predictWeightedGraph(graph):
     for i,j in graph.edges_iter():
@@ -40,14 +62,13 @@ def numMistakes(trueGraph, predGraph):
     err = 0.
     for i,j in trueGraph.edges_iter:
         if predGraph[i][j]['predTransition'] == trueGraph[i][j]['transition']:
-        err += 1
+            err += 1
     return err
 
 def perceptronUpdate(weights, G, trueGraph, predGraph):
     for i,j in pred.edges_iter():
         if  predGraph[i][j]['predTransition'] == trueGraph[i][j]['transition']: continue 
         weights.update(G[i][j], -1)
-
 
 
 def runOneExample(weights, trueGraph):
@@ -60,7 +81,7 @@ def runOneExample(weights, trueGraph):
         perceptronUpdate(weights, G, trueGraph, predGraph)
 
 
-def convertToTransitions(InputGraph):
+def convertToTransitions(inputGraph):
     # create a new graph to return
     out = nx.Graph()
     bufferDepG = []
@@ -123,7 +144,7 @@ def iterCoNLL(filename):
             if G == None:
                 nn = nn + 1
                 G = nx.Graph()
-                G.add_node(0, {'word': '*root*', 'lemma': '*root*', 'cpos': '*root*', 'pos': '*root*', 'feats': '*root*'})
+                G.add_node(0, {'word': '*root*', 'lemma': '*root*', 'cpos': '*root*', 'pos': '*root*', 'feats': '*root*', 'head' : '*root*'})
                 newGraph = False
             [id, word, lemma, cpos, pos, feats, head, drel, phead, pdrel] = l.split('\t')
             G.add_node(int(id), {'word' : word,
@@ -133,7 +154,7 @@ def iterCoNLL(filename):
                                  'feats': feats,
                                  'head' : head})
             
-            G.add_edge(int(head), int(id), {}) # 'true_rel': drel, 'true_par': int(id)})
+            #G.add_edge(int(head), int(id), {}) # 'true_rel': drel, 'true_par': int(id)})
 
     if G != None:
         yield G
@@ -146,5 +167,5 @@ weights = Weights()
 print weights
 for iteration in range(5):
          totalErr = 0.
-         for G in iterCoNLL(inputTestSet): totalErr += runOneExample(weights, G, quiet=True)
+         for G in iterCoNLL(inputTestSet): totalErr += runOneExample(weights, G)
          print totalErr

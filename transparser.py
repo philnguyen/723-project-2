@@ -23,9 +23,9 @@ def predictWeightedGraph(graph):
         features = features.pop[6]
 
         # to remove the transition state from the features
-        yR = weightsR.dotProduct()
-        yL = weightsL.dotProduct()
-        yS = weightsS.dotProduct()
+        yR = weightsR.dotProduct(features)
+        yL = weightsL.dotProduct(features)
+        yS = weightsS.dotProduct(features)
         predTransition = ''
         predTransitionVal = max(yR,yL,yS)
         if predTransitionVal == yR:
@@ -36,12 +36,28 @@ def predictWeightedGraph(graph):
         graph[i][j]['predTransition'] = ''
         graph[i][j]['predTransition'] = predTransition
 
+def numMistakes(trueGraph, predGraph):
+    err = 0.
+    for i,j in trueGraph.edges_iter:
+        if predGraph[i][j]['predTransition'] == trueGraph[i][j]['transition']:
+        err += 1
+    return err
 
-def runOneExample(weights, TrueGraph):
-    G = convertToTransitions(TrueGraph)
+def perceptronUpdate(weights, G, trueGraph, predGraph):
+    for i,j in pred.edges_iter():
+        if  predGraph[i][j]['predTransition'] == trueGraph[i][j]['transition']: continue 
+        weights.update(G[i][j], -1)
+
+
+
+def runOneExample(weights, trueGraph):
+    G = convertToTransitions(trueGraph)
 
     predGraph = predictWeightedGraph(G)
+    err = numMistakes(G,predGraph)
 
+    if err > 0:
+        perceptronUpdate(weights, G, trueGraph, predGraph)
 
 
 def convertToTransitions(InputGraph):

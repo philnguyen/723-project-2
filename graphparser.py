@@ -85,7 +85,7 @@ def computeGraphEdgeWeights(graph, weights):
     
     for i,j in graph.edges_iter():
         graph[i][j]['weight'] = 0.   # make sure it doesn't make its way into the dot product
-        graph[i][j]['weight'] = weights.dotProduct(graph[i][j])
+        graph[i][j]['weight'] = weights.dotProduct(graph[i][j])fen
 
         
 # once we have a graph with weights on the edgegss, we need to be able

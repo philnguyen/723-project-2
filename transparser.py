@@ -41,13 +41,19 @@ def predictWeightedGraph(graph):
     for i,j in graph.edges_iter():
         # apply averaged perceptron algorithm for multiclass classification of the transition 'r' 'l' 's'. remove the feature 'transition' from the edge
         features = graph[i][j]
+        #print graph[i][j]
         trueTransition = features['transition']
+        #print trueTransition
         del features['transition']
 
         # to remove the transition state from the features
         yR = weightsR.dotProduct(features)
+        #print yR
         yL = weightsL.dotProduct(features)
+        #print yL
         yS = weightsS.dotProduct(features)
+        #print yS
+        #print '/n'
         predTransition = ''
         predTransitionVal = max(yR,yL,yS)
         if predTransitionVal == yR:
@@ -55,28 +61,61 @@ def predictWeightedGraph(graph):
         elif predTransitionVal == yL:
             predTransition = 'l'
         else: predTransition = 's'
+        #if predTransition!='s': print predTransition
         graph[i][j]['predTransition'] = ''
         graph[i][j]['predTransition'] = predTransition
+        graph[i][j]['transition'] = trueTransition
+        #print graph[i][j]
     return graph
 
 def numMistakes(trueGraph, predGraph):
     # remove trueGraph as it is not required
     err = 0.
-    for i,j in predGraph.edges_iter:
-        if predGraph[i][j]['predTransition'] != trueGraph[i][j]['transition']:
+    for i,j in predGraph.edges_iter():
+        #print predGraph[i][j]
+        #print trueGraph[i][j]
+        if predGraph[i][j]['predTransition'] != predGraph[i][j]['transition']:
             err += 1
+            print err
     return err
 
-def perceptronUpdate(weights, G, trueGraph, predGraph):
-    for i,j in pred.edges_iter():
-        if  predGraph[i][j]['predTransition'] == trueGraph[i][j]['transition']: continue 
-        weights.update(G[i][j], -1)
+def perceptronUpdate(weightsR, weightsL, weightsS, predGraph):
+    for i,j in predGraph.edges_iter():
+        #print predGraph[i][j]
+        predTransition = predGraph[i][j]['predTransition']
+        transition = predGraph[i][j]['transition']
+        
+        del predGraph[i][j]['predTransition']
+        del predGraph[i][j]['transition']
+
+        if  predTransition == 'r':
+            weightsR.update(predGraph[i][j], -1)
+        if  predTransition == 'l':
+            weightsL.update(predGraph[i][j], -1)
+        if  predTransition == 's':
+            weightsS.update(predGraph[i][j], -1)
+        if  transition == 'r':
+            weightsR.update(predGraph[i][j], 1)
+        if  transition == 'l':
+            weightsL.update(predGraph[i][j], 1)
+        if  transition == 's':
+            weightsS.update(predGraph[i][j], 1)
+        #print weightsS
+        #print weightsL
+        #print weightsR
+
+        predGraph[i][j]['predTransition'] = predTransition
+        predGraph[i][j]['transition'] = transition
+
+
+
 
 
 def runOneExample(weightsR, weightsL, weightsS, trueGraph):
     G = convertToTransitions(trueGraph)
 
     predGraph = predictWeightedGraph(G)
+
     err = numMistakes(G,predGraph)
 
     if err > 0:
@@ -130,7 +169,7 @@ def convertToTransitions(inputGraph):
             # TODO is graph output the correct form of output
 
         out.add_edge(stackTop, bufferTop, feats)
-                      
+        #print out             
     return out
 
 
@@ -139,6 +178,7 @@ def iterCoNLL(filename):
     G = None
     nn = 0
     for l in h:
+        #print l
         l = l.strip()
         if l == "":
             if G != None:
@@ -158,7 +198,7 @@ def iterCoNLL(filename):
                                  'feats': feats,
                                  'head' : head})
             
-            #G.add_edge(int(head), int(id), {}) # 'true_rel': drel, 'true_par': int(id)})
+            G.add_edge(int(head), int(id), {}) # 'true_rel': drel, 'true_par': int(id)})
 
     if G != None:
         yield G
@@ -171,5 +211,6 @@ weightsS = Weights()
 
 for iteration in range(5):
          totalErr = 0.
-         for G in iterCoNLL(inputTrainSet): totalErr += runOneExample(weightsR, weightsL, weightsS, G)
+         for G in iterCoNLL(inputTrainSet): 
+            totalErr += runOneExample(weightsR, weightsL, weightsS, G)
          print totalErr

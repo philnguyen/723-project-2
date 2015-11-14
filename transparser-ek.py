@@ -6,6 +6,18 @@ import numpy as np
 
 #############################################################################   
 
+
+
+def transToStr(t): 
+   move = "False Move"
+   if (t == shift): 
+        move = "SHIFT"
+   elif (t == arc_left): 
+        move = "ARCLEFT"
+   elif (t == arc_right): 
+        move = "ARCRIGHT"
+   return move
+    
 class Weights(dict):
     def __getitem__(self, idx):
        if self.has_key(idx):
@@ -15,26 +27,22 @@ class Weights(dict):
     
     def dotProduct(self, x, t):
         dot = 0.
-        for feat,val in x.iteritems():
+        for feat, val in x.iteritems():
             dot += val * self[feat,t]
         return dot
     
     def update(self, x, y, t, counter=1):
-        if (t == shift): 
-            t = "SHIFT"
-        elif (t == arc_left): 
-            t = "ARCLEFT"
-        elif (t == arc_right): 
-            t = "ARCRIGHT"
+        t = transToStr(t)
         for feat,val in x.iteritems():
             if val != 0.:
                 self[feat, t] += y * val * counter
     
-    def average(self, x, cache, counter):
+    def average(self, cache, counter):
        avg = {}
-       for (wFeat, wVal), (cFeat, cVal) in self.iteritems(), cache,.iteritems():
-           avg[wFeat] = (wVal - ((1/counter) * cVal))
-       return avg
+       for feat, wVal in self.iteritems():
+           cVal = cache[feat]
+           avg[feat] = (wVal - ((1/counter) * cVal))
+       return Weights(avg)
 
 
 class Config():  
@@ -75,23 +83,13 @@ class Config():
             print "\t".join(instance)
         
         if predMove != None:
-            if (predMove == shift):
-                move = "SHIFT"
-            if (predMove == arc_right):
-                move = "ARCRIGHT"
-            if (predMove == arc_left):
-                move = "ARCLEFT"
+            move = transToStr(predMove)
             print "Predicted Move: " + move
         else: 
             print "No move to predict."
         
         if trueMove != None:
-            if (trueMove == shift):
-                move = "SHIFT"
-            if (trueMove == arc_right):
-                move = "ARCRIGHT"
-            if (trueMove == arc_left):
-                move = "ARCLEFT"
+            move = transToStr(trueMove)
             print "True Move: " + move
         else: 
             print "No true move."
@@ -155,8 +153,6 @@ def true_next_move(config):
         # The top of the stack is the head of the top of the buffer. 
         topOfStack = config.stack[0]['id']
         topOfBuffer = config.buff[0]['id']
-        print config.getTrueHead(topOfBuffer)
-        print topOfStack
         if (config.getTrueHead(topOfBuffer) != topOfStack):
             return False
         for i in config.buff:
@@ -193,12 +189,12 @@ def true_next_move(config):
     return nextMove
 
 
-def predict_next_move(config, weights, trans):
+def predict_next_move(config, weights, bias, trans):
     feat = config.features()
     
     temp = []
     for t in trans: 
-        temp.append(weights.dotProduct(feat, t))
+        temp.append(weights.dotProduct(feat, t) + bias[t])
     idx = np.argmax(temp)
     argmax = trans[idx]
     
@@ -210,32 +206,44 @@ def predict_next_move(config, weights, trans):
     return next_move
 
 
+def arc_standard(config, weights, bias): 
+    while (config.buff != []) and (config.buff[0]['id'] != '0'):
+        next_move = predict_next_move(config, weights, bias, ['ARCRIGHT', 'ARCLEFT', 'SHIFT'])
+        config = next_move(config)   
+    return config
+
+
 #############################################################################  
 
 # For Training: Runs average perceptron algorithm for one instance. 
-def train_instance(weights, cache, counter, instance): 
+def train_instance(weights, cache, counter, bias, cacheBias, instance): 
    config = Config(instance)
-   config.debugger()
 
    while (config.buff != []) and (config.buff[0]['id'] != '0'):
-     pred_move = predict_next_move(config, weights, ['ARCRIGHT', 'ARCLEFT', 'SHIFT'])
+     pred_move = predict_next_move(config, weights, bias, ['ARCRIGHT', 'ARCLEFT', 'SHIFT'])
      true_move = true_next_move(config)
           
-     print "debugger"
-     config.debugger(pred_move, true_move)
-
      if pred_move != true_move:
         feat = config.features()
         weights.update(feat, -1, pred_move)
         weights.update(feat, 1, true_move)
         cache.update(feat, -1, pred_move, counter=counter)
         cache.update(feat, 1, true_move, counter=counter)
+        bias[transToStr(pred_move)] -= 1
+        bias[transToStr(true_move)] += 1
+        cacheBias[transToStr(pred_move)] -= 1 * counter
+        cacheBias[transToStr(true_move)] += 1 * counter
 
      config = true_move(config)     # Execute oracle move on config.
      counter += 1
 
-   return (weights, cache, counter)
+   return (weights, cache, counter, bias, cacheBias)
 
+# For Test Data: Runs arc standard algorithm using weights for move predictions.   
+def test_instance(weights, bias, instance): 
+    config = Config(instance)
+    parse = arc_standard(config, weights, bias)
+    return parse
 
 ############################################################################# 
 
@@ -289,22 +297,24 @@ def main(argv):
    
    counter = 1
    weights = Weights()
+   bias = Weights()
    cache = Weights()
+   cacheBias = Weights()
    
    # Iterates dev file instances and runs average perceptron algorithm on each.
    for iteration in range(5):
        for S in iterCoNLL(dev): 
-          (weights, cache, counter) = train_instance(weights, cache, counter, S)
+          (weights, cache, counter, bias, cacheBias) = train_instance(weights, cache, counter, bias, cacheBias, S)
 
-   avg = weights.average(cache, counter)
-   print avg
+   avgWeights = weights.average(cache, counter)
+   avgBias = bias.average(cacheBias, counter)
     
    # Iterates test file instances. Uses the weights trained above to predict arc standard moves.
    # Then prints the predicted parse to output file. 
-   # for iteration in range(100):
-#        for S in iterCoNLL(testFile):
-#            parse = test_instance(avg, S)
-#            parse.pp(out)
+   for iteration in range(5):
+       for S in iterCoNLL(test):
+           parse = test_instance(avgWeights, avgBias, S)
+           parse.pp(out)
 
 
 if __name__ == "__main__":

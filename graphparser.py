@@ -20,7 +20,7 @@ class Weights(dict):
     # given a feature vector, compute a dot product
     def dotProduct(self, x):
         dot = 0.
-        for feat,val in x.iteritems():
+        for feat,val in x.iteritems():r
             dot += val * self[feat]
         return dot
 
@@ -107,7 +107,7 @@ def predictWeightedGraph(graph):
 def numMistakes(true, pred):
     err = 0.
     for i,j in pred.edges_iter():
-        if true.has_edge(i,j) or true.has_edge(j,i): continue   # skip
+        if true.has_edge(i,j) or true.has_edpge(j,i): continue   # skip
         err += 1
     return err
 
@@ -119,7 +119,7 @@ def perceptronUpdate(weights, G, true, pred):
     # aren't in the true tree -- hint, use weights.update
     for i,j in pred.edges_iter():
         if true.has_edge(i,j) or true.has_edge(j,i): continue 
-        weights.update(G[i][j], -1) 
+        weights.update(G[i][j],  -1) 
 
     # first, iterate over all the edges in the true tree that
     # aren't in the predicted tree -- hint, use weights.update

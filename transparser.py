@@ -1,19 +1,6 @@
 import networkx as nx
 import sys
 
-for arg in sys.argv:
-    inputTrainSet = sys.argv[1]
-    inputTestSet = sys.argv[2]
-    outputTestSet = sys.argv[3]
-
-#TODO
-# create a random weight matrix
-#iterate over all sentences in the training set
-    # parse a sentence into a buffer
-    # determine transitions for a particular sentence
-    # train a classifier on this training data
-    # learn bpnn model for transitions. hmm how would you predict transitions. you can predict the head number or word for a particular word but how do you predict transitions
-    # learn what is the head of one word and if it is the first word in the buffer then do a right transition
 class Weights(dict):
     # default all unknown feature values to zero
     def __getitem__(self, idx):
@@ -37,7 +24,7 @@ class Weights(dict):
             if val != 0.:
                 self[feat] += y * val
 
-def predictWeightedGraph(graph):
+def predTransitionGraph(graph):
     for i,j in graph.edges_iter():
         # apply averaged perceptron algorithm for multiclass classification of the transition 'r' 'l' 's'. remove the feature 'transition' from the edge
         features = graph[i][j]
@@ -47,11 +34,11 @@ def predictWeightedGraph(graph):
         del features['transition']
 
         # to remove the transition state from the features
-        yR = weightsR.dotProduct(features)
+        yR = weightsR.dotProduct(features) + bias[0]
         #print yR
-        yL = weightsL.dotProduct(features)
+        yL = weightsL.dotProduct(features) + bias[1]
         #print yL
-        yS = weightsS.dotProduct(features)
+        yS = weightsS.dotProduct(features) + bias[2]
         #print yS
         #print '/n'
         predTransition = ''
@@ -82,7 +69,8 @@ def numMistakes(trueGraph, predGraph):
             #print err
     return err
 
-def perceptronUpdate(weightsR, weightsL, weightsS, predGraph):
+#def avgPerceptronUpdate(weightsR, weightsL, weightsS, predGraph):
+def avgPerceptronUpdate(predGraph):
     for i,j in predGraph.edges_iter():
         #TODO make this averaged perceptron
         #TODO update after every sentence vs update after every word
@@ -95,16 +83,22 @@ def perceptronUpdate(weightsR, weightsL, weightsS, predGraph):
 
         if  predTransition == 'r':
             weightsR.update(predGraph[i][j], -1)
+            bias[0]-=1
         if  predTransition == 'l':
             weightsL.update(predGraph[i][j], -1)
+            bias[1]-=1
         if  predTransition == 's':
             weightsS.update(predGraph[i][j], -1)
+            bias[2]-=1
         if  transition == 'r':
             weightsR.update(predGraph[i][j], 1)
+            bias[0]+=1
         if  transition == 'l':
             weightsL.update(predGraph[i][j], 1)
+            bias[1]+=1
         if  transition == 's':
             weightsS.update(predGraph[i][j], 1)
+            bias[2]+=1
         #print weightsS
         #print weightsL
         #print weightsR
@@ -112,21 +106,7 @@ def perceptronUpdate(weightsR, weightsL, weightsS, predGraph):
         predGraph[i][j]['predTransition'] = predTransition
         predGraph[i][j]['transition'] = transition
 
-
-def runOneExample(weightsR, weightsL, weightsS, trueGraph):
-    G = convertToTransitions(trueGraph)
-
-    predGraph = predictWeightedGraph(G)
-
-    err = numMistakes(G,predGraph)
-
-    if err > 0:
-        perceptronUpdate(weightsR, weightsL, weightsS, predGraph)
-
-    return err
-
-
-def convertToTransitions(inputGraph):
+def trainOracle(inputGraph):
     # create a new graph to return
     out = nx.Graph()
     bufferDepG = []
@@ -206,6 +186,18 @@ def convertToTransitions(inputGraph):
         #print out             
     return out
 
+def runOneExample(weightsR, weightsL, weightsS, trueGraph):
+    G = trainOracle(trueGraph)
+
+    predGraph = predTransitionGraph(G)
+
+    err = numMistakes(G,predGraph)
+
+    if err > 0:
+        #avgPerceptronUpdate(weightsR, weightsL, weightsS, predGraph)
+        avgPerceptronUpdate(predGraph)
+
+    return err
 
 def iterCoNLL(filename):
     h = open(filename, 'r')
@@ -232,17 +224,22 @@ def iterCoNLL(filename):
                                  'feats': feats,
                                  'head' : head})
             
-            G.add_edge(int(head), int(id), {}) # 'true_rel': drel, 'true_par': int(id)})
+            #G.add_edge(int(head), int(id), {}) # 'true_rel': drel, 'true_par': int(id)})
 
     if G != None:
         yield G
     h.close()
 
+for arg in sys.argv:
+    inputTrainSet = sys.argv[1]
+    inputTestSet = sys.argv[2]
+    outputTestSet = sys.argv[3]
 
 weightsR = Weights()
 weightsL = Weights()
 weightsS = Weights()
-
+bias = [0,0,0] #[biasR, biasL, biasS]
+cachedWeights
 for iteration in range(5):
          totalErr = 0.
          for G in iterCoNLL(inputTrainSet): 
@@ -251,3 +248,21 @@ for iteration in range(5):
          #print weightsL
          #print weightsS
          print totalErr
+
+# read in test filename
+for G in iterCoNLL(inputTestSet):
+    output = predicttheHeads(weightsR, weightsL, weightsS, G)
+    writetheheads(output, inputTestSet)
+    outputTestSet
+
+# for end of file:
+    # for each sentence
+        # fill the buffer and stack
+        # extract features
+        # multiply with weights
+        # find the maximum weight and determine the transition
+        # assign the head
+        # make the transition and update the stack and the buffer
+    # udpate the output file with the correct heads - copy the input file to another and update that file with the heads
+
+#def predictTheHeads(weightsR, weightsL, weighsS, G):

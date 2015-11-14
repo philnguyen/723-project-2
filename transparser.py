@@ -1,5 +1,5 @@
 import networkx as nx
-import sys
+import sys, os
 
 class Weights(dict):
     # default all unknown feature values to zero
@@ -140,7 +140,7 @@ def trainOracle(inputGraph):
         f = inputGraph.node[stacksDepG[0]] # get node information for i (eg {word: blah, pos: blah})
         #print bufferDepG
         #print stacksDepG
-        if len(bufferDepG)!=0: g = inputGraph.node[bufferDepG[0]] # get node information for j
+        g = inputGraph.node[bufferDepG[0]] # get node information for j
         stackTop = stacksDepG[0]
         bufferTop = bufferDepG[0]
 
@@ -225,12 +225,13 @@ def runOneExample(weightsR, weightsL, weightsS, trueGraph):
 
     return err
 
+
+# Reads each phrase from file. 
 def iterCoNLL(filename):
     h = open(filename, 'r')
     G = None
     nn = 0
     for l in h:
-        #print l
         l = l.strip()
         if l == "":
             if G != None:
@@ -240,21 +241,118 @@ def iterCoNLL(filename):
             if G == None:
                 nn = nn + 1
                 G = nx.Graph()
-                G.add_node(0, {'word': '*root*', 'lemma': '*root*', 'cpos': '*root*', 'pos': '*root*', 'feats': '*root*', 'head' : ''})
-                newGraph = False
+                G.add_node(0, {'id': '0','word': '*root*', 'lemma': '*root*', 'cpos': '*root*', 'pos': '*root*', 'feats': '*root*', 'head': '*root*', 'drel': '*root*', 'phead':'*root*', 'pdrel':'*root*', 'predhead': '*root*'})
             [id, word, lemma, cpos, pos, feats, head, drel, phead, pdrel] = l.split('\t')
-            G.add_node(int(id), {'word' : word,
+            G.add_node(int(id), {'id': str(id),
+                                 'word' : word,
                                  'lemma': lemma,
                                  'cpos' : cpos,
                                  'pos'  : pos,
-                                 'feats': feats,
-                                 'head' : head})
-            
-            #G.add_edge(int(head), int(id), {}) # 'true_rel': drel, 'true_par': int(id)})
-
+                                 'feats': feats, 
+                                 'head': head,
+                                 'drel': drel, 
+                                 'phead': phead,
+                                 'pdrel': pdrel,
+                                 'predhead': '_' })          
     if G != None:
         yield G
     h.close()
+
+def pp(G, out):             
+        #open file and append. Note: predicted head is printed in head position.
+        file = open(out, "a")
+        for i in G.nodes(): 
+            if G.node[i]['word'] == "*root*": 
+                continue    
+            instance = [G.node[i]['id'], G.node[i]['word'], G.node[i]['lemma'], G.node[i]['cpos'], 
+            G.node[i]['pos'], G.node[i]['feats'], G.node[i]['head'], G.node[i]['drel'],  G.node[i]['phead'], G.node[i]['pdrel']]
+            file.write("\t".join(instance)) 
+            file.write("\n") 
+        file.write("\n")
+# for end of file:
+    # for each sentence
+        # fill the buffer and stack
+        # extract features
+        # multiply with weights
+        # find the maximum weight and determine the transition
+        # assign the head
+        # make the transition and update the stack and the buffer
+    # udpate the output file with the correct heads - copy the input file to another and update that file with the heads
+
+def predictTheHeads(inputGraph):
+    out = nx.Graph()
+    bufferDepG = []
+    stacksDepG = [0] # 0 corresponds to 'root'
+    #print inputGraph
+    for i in inputGraph.nodes():
+        bufferDepG.append(i) 
+    bufferDepG.pop(0) # because i starts from 0 which is 'root'
+    
+    while len(bufferDepG)!=0:
+        # if head of the top of the stack is the top of the buffer
+
+        f = inputGraph.node[stacksDepG[0]] # get node information for i (eg {word: blah, pos: blah})
+        #print bufferDepG
+        #print stacksDepG
+        g = inputGraph.node[bufferDepG[0]] # get node information for j
+        
+        stackTop = stacksDepG[0]
+        bufferTop = bufferDepG[0]
+
+        feats = {   'stack_top=' + f['word']: 1.,
+                    'buffer_top=' + g['word'] : 1.,
+                    'cpos_stack_top=' + f['cpos']: 1.,
+                    'cpos_buffer_head=' + g['cpos']: 1.,
+                    'w_pair=' + f['word'] + '_' + g['word']: 1.,
+                    'cp_pair=' + f['cpos'] + '_' + g['cpos']: 1.}
+                    #'transition': transition}
+            # TODO is graph output the correct form of output
+
+        predTransition = predTransitionSingle(feats)
+        #print bufferDepG
+        #print stacksDepG
+        #print predTransition
+        #print inputGraph.node[stacksDepG[0]]['head']
+        #print bufferDepG[0]
+
+        # right transition
+        if predTransition == 'r':
+            inputGraph.node[bufferTop]['head'] = str(stackTop)
+            #print inputGraph.node[bufferTop]
+            #if inputGraph.node[bufferDepG[0]]['head'] == str(stacksDepG[0]) and stacksDepG[0] != 0:
+            #transition = 'r'
+            # r is for right transition            
+            bufferDepG.pop(0)
+            if stacksDepG[0] != 0:
+                bufferDepG.insert(0,stacksDepG[0])
+                stacksDepG.pop(0)
+                #print inputGraph.node[bufferDepG[0]]['head']
+                #print stacksDepG[0]
+                #print 'right'
+                #print 2
+
+        # left transition
+        elif predTransition == 'l':
+            inputGraph.node[stackTop]['head'] = str(bufferTop)
+            #print inputGraph.node[stackTop]
+            #elif inputGraph.node[stacksDepG[0]]['head'] == str(bufferDepG[0]):
+            if stacksDepG[0] != 0:
+                stacksDepG.pop(0)
+                #print inputGraph.node[stacksDepG[0]]['head']
+                #print bufferDepG[0]
+
+        # shift transition
+        elif predTransition == 's':
+            stacksDepG.insert(0,bufferDepG[0])
+            bufferDepG.pop(0)
+            #if len(bufferDepG)!=0: print bufferDepG[0]
+        #print transition
+
+        out.add_edge(stackTop, bufferTop , feats)
+    
+        #print out             
+    return inputGraph
+
 
 
 weightsR = Weights()
@@ -286,109 +384,18 @@ bias[0] -= cachedBias[0]/avgCounter
 bias[1] -= cachedBias[1]/avgCounter
 bias[2] -= cachedBias[2]/avgCounter
 
+if os.path.exists(outputTestSet):
+    os.remove(outputTestSet)
+else:
+    print("Can't remove %s file." % outputTestSet)
+print 3
 # read in test filename
 for G in iterCoNLL(inputTestSet):
-    #output = predicttheHeads(weightsR, weightsL, weightsS, G)
-    writetheheads(output, inputTestSet)
-    outputTestSet
+    #print 1
+    output = predictTheHeads(G)
+    #print 2
+    #for i in output.nodes():
+    #    print output.node[i]['head']
+    pp(output, outputTestSet)
+    #writetheheads(output, inputTestSet)
 
-# for end of file:
-    # for each sentence
-        # fill the buffer and stack
-        # extract features
-        # multiply with weights
-        # find the maximum weight and determine the transition
-        # assign the head
-        # make the transition and update the stack and the buffer
-    # udpate the output file with the correct heads - copy the input file to another and update that file with the heads
-
-def predictTheHeads(inputGraph):
-    out = nx.Graph()
-    bufferDepG = []
-    stacksDepG = [0] # 0 corresponds to 'root'
-    #print inputGraph
-    for i in inputGraph.nodes():
-        bufferDepG.append(i) 
-    bufferDepG.pop(0) # because i starts from 0 which is 'root'
-    
-    while len(bufferDepG)!=0:
-        # if head of the top of the stack is the top of the buffer
-
-        f = inputGraph.node[stacksDepG[0]] # get node information for i (eg {word: blah, pos: blah})
-        #print bufferDepG
-        #print stacksDepG
-        if len(bufferDepG)!=0: 
-            g = inputGraph.node[bufferDepG[0]] # get node information for j
-        
-        stackTop = stacksDepG[0]
-        bufferTop = bufferDepG[0]
-
-        feats = {   'stack_top=' + f['word']: 1.,
-                    'buffer_top=' + g['word'] : 1.,
-                    'cpos_stack_top=' + f['cpos']: 1.,
-                    'cpos_buffer_head=' + g['cpos']: 1.,
-                    'w_pair=' + f['word'] + '_' + g['word']: 1.,
-                    'cp_pair=' + f['cpos'] + '_' + g['cpos']: 1.}
-                    #'transition': transition}
-            # TODO is graph output the correct form of output
-
-        predTransition = predTransitionSingle(feats)
-
-        out.add_edge(stackTop, bufferTop , feats)
-
-        #print inputGraph.node[stacksDepG[0]]['head']
-        #print bufferDepG[0]
-
-        # right transition
-        if predTransition == 'r':
-            inputGraph[bufferTop]['head'] = stackTop
-
-            #if inputGraph.node[bufferDepG[0]]['head'] == str(stacksDepG[0]) and stacksDepG[0] != 0:
-            #transition = 'r'
-            # r is for right transition
-            bufferDepG.pop(0)
-            bufferDepG.insert(0,stacksDepG[0])
-            stacksDepG.pop(0)
-            #print inputGraph.node[bufferDepG[0]]['head']
-            #print stacksDepG[0]
-            #print 'right'
-            #print 2
-
-        # left transition
-        elif predTransition == 'l':
-            inputTestSet[stackTop]['head'] = bufferTop            
-            #elif inputGraph.node[stacksDepG[0]]['head'] == str(bufferDepG[0]):
-            #flag = True
-            bufferDepG.pop(0) # this is added again afterwards
-            # left arc precondition
-            #for i in bufferDepG:
-                #print i
-                #print inputGraph.node[i]
-            #    if inputGraph.node[i]['head'] == stacksDepG[0]:
-            #        flag = False
-            #        continue
-            bufferDepG.insert(0,bufferTop)
-            #if inputGraph.node[stacksDepG[0]]!= str(0) and flag:
-            #    transition = 'l'
-                # l is for left transition
-            stacksDepG.pop(0)
-                #print inputGraph.node[stacksDepG[0]]['head']
-                #print bufferDepG[0]
-
-                #print 'left'
-            #print 1
-        # if the top of the stack is the head of the first element of the buffer
-
-        # shift transition
-        else:
-            transition = 's'
-            # s is for shift transition
-            stacksDepG.insert(0,bufferDepG[0])
-            bufferDepG.pop(0)
-            #if len(bufferDepG)!=0: print bufferDepG[0]
-        #print transition
-
-
-    
-        #print out             
-    return out

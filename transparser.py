@@ -24,7 +24,6 @@ class Weights(dict):
             if val != 0.:
                 self[feat] += y * val
                 
-
 def predTransitionGraph(graph):
     for i,j in graph.edges_iter():
         # apply averaged perceptron algorithm for multiclass classification of the transition 'r' 'l' 's'. remove the feature 'transition' from the edge
@@ -85,27 +84,33 @@ def avgPerceptronUpdate(predGraph):
         if  predTransition == 'r':
             weightsR.update(predGraph[i][j], -1)
             cachedWeightsR.update(predGraph[i][j], -1*avgCounter)
-            bias[0]-=1
+            bias[0] += -1
+            cachedBias[0] += -1*avgCounter
         if  predTransition == 'l':
             weightsL.update(predGraph[i][j], -1)
             cachedWeightsL.update(predGraph[i][j], -1*avgCounter)
-            bias[1]-=1
+            bias[1] += -1
+            cachedBias[1] += -1*avgCounter
         if  predTransition == 's':
             weightsS.update(predGraph[i][j], -1)
             cachedWeightsS.update(predGraph[i][j], -1*avgCounter)
-            bias[2]-=1
+            bias[2] += -1
+            cachedBias[2] += -1*avgCounter
         if  transition == 'r':
             weightsR.update(predGraph[i][j], 1)
             cachedWeightsR.update(predGraph[i][j], 1*avgCounter)
-            bias[0]+=1
+            bias[0] += 1
+            cachedBias[0] += 1*avgCounter
         if  transition == 'l':
             weightsL.update(predGraph[i][j], 1)
             cachedWeightsL.update(predGraph[i][j], 1*avgCounter)
-            bias[1]+=1
+            bias[1] += 1
+            cachedBias[1] += 1*avgCounter
         if  transition == 's':
             weightsS.update(predGraph[i][j], 1)
             cachedWeightsS.update(predGraph[i][j], 1*avgCounter)
-            bias[2]+=1
+            bias[2] += 1
+            cachedBias[2] += 1*avgCounter
         #print weightsS
         #print weightsL
         #print weightsR
@@ -122,9 +127,6 @@ def trainOracle(inputGraph):
     for i in inputGraph.nodes():
         bufferDepG.append(i) 
     bufferDepG.pop(0) # because i starts from 0 which is 'root'
-
-    # TODO implement buffer and stack
-
 
     while len(bufferDepG)!=0:
         # if head of the top of the stack is the top of the buffer
@@ -240,20 +242,21 @@ def iterCoNLL(filename):
         yield G
     h.close()
 
-for arg in sys.argv:
-    inputTrainSet = sys.argv[1]
-    inputTestSet = sys.argv[2]
-    outputTestSet = sys.argv[3]
 
 weightsR = Weights()
 weightsL = Weights()
 weightsS = Weights()
-bias = [0,0,0] #[biasR, biasL, biasS]
+bias = [0.,0.,0.] #[biasR, biasL, biasS]
 cachedWeightsR = Weights()
 cachedWeightsL = Weights()
 cachedWeightsS = Weights()
-cachedBias = [0,0,0]
+cachedBias = [0.,0.,0.]
 avgCounter = 1.0
+
+for arg in sys.argv:
+    inputTrainSet = sys.argv[1]
+    inputTestSet = sys.argv[2]
+    outputTestSet = sys.argv[3]
 
 for iteration in range(5):
     totalErr = 0.
@@ -265,10 +268,14 @@ for iteration in range(5):
 weightsR.update(cachedWeightsR, -1.0/avgCounter)
 weightsL.update(cachedWeightsL, -1.0/avgCounter)
 weightsS.update(cachedWeightsS, -1.0/avgCounter)
+bias[0] -= cachedBias[0]/avgCounter
+bias[1] -= cachedBias[1]/avgCounter
+bias[2] -= cachedBias[2]/avgCounter
+
 
 # read in test filename
 for G in iterCoNLL(inputTestSet):
-    output = predicttheHeads(weightsR, weightsL, weightsS, G)
+    #output = predicttheHeads(weightsR, weightsL, weightsS, G)
     writetheheads(output, inputTestSet)
     outputTestSet
 
@@ -282,4 +289,88 @@ for G in iterCoNLL(inputTestSet):
         # make the transition and update the stack and the buffer
     # udpate the output file with the correct heads - copy the input file to another and update that file with the heads
 
-#def predictTheHeads(weightsR, weightsL, weighsS, G):
+def predictTheHeads(G):
+    out = nx.Graph()
+    bufferDepG = []
+    stacksDepG = [0] # 0 corresponds to 'root'
+    #print inputGraph
+    for i in inputGraph.nodes():
+        bufferDepG.append(i) 
+    bufferDepG.pop(0) # because i starts from 0 which is 'root'
+    
+    while len(bufferDepG)!=0:
+        # if head of the top of the stack is the top of the buffer
+
+        f = inputGraph.node[stacksDepG[0]] # get node information for i (eg {word: blah, pos: blah})
+        #print bufferDepG
+        #print stacksDepG
+        if len(bufferDepG)!=0: 
+            g = inputGraph.node[bufferDepG[0]] # get node information for j
+        
+        stackTop = stacksDepG[0]
+        bufferTop = bufferDepG[0]
+
+        feats = {   'stack_top=' + f['word']: 1.,
+                    'buffer_top=' + g['word'] : 1.,
+                    'cpos_stack_top=' + f['cpos']: 1.,
+                    'cpos_buffer_head=' + g['cpos']: 1.,
+                    'w_pair=' + f['word'] + '_' + g['word']: 1.,
+                    'cp_pair=' + f['cpos'] + '_' + g['cpos']: 1.}
+                    #'transition': transition}
+            # TODO is graph output the correct form of output
+
+
+        out.add_edge(stackTop, bufferTop , feats)
+
+        #print inputGraph.node[stacksDepG[0]]['head']
+        #print bufferDepG[0]
+
+
+        # left transition
+        if inputGraph.node[stacksDepG[0]]['head'] == str(bufferDepG[0]):
+            flag = True
+            bufferDepG.pop(0) # this is added again afterwards
+            # left arc precondition
+            for i in bufferDepG:
+                #print i
+                #print inputGraph.node[i]
+                if inputGraph.node[i]['head'] == stacksDepG[0]:
+                    flag = False
+                    continue
+            bufferDepG.insert(0,bufferTop)
+            if inputGraph.node[stacksDepG[0]]!= str(0) and flag:
+                transition = 'l'
+                # l is for left transition
+                stacksDepG.pop(0)
+                #print inputGraph.node[stacksDepG[0]]['head']
+                #print bufferDepG[0]
+
+                #print 'left'
+            #print 1
+        # if the top of the stack is the head of the first element of the buffer
+
+        # right transition
+        elif inputGraph.node[bufferDepG[0]]['head'] == str(stacksDepG[0]) and stacksDepG[0] != 0:
+            transition = 'r'
+            # r is for right transition
+            bufferDepG.pop(0)
+            bufferDepG.insert(0,stacksDepG[0])
+            stacksDepG.pop(0)
+            #print inputGraph.node[bufferDepG[0]]['head']
+            #print stacksDepG[0]
+            #print 'right'
+            #print 2
+
+        # shift transition
+        else:
+            transition = 's'
+            # s is for shift transition
+            stacksDepG.insert(0,bufferDepG[0])
+            bufferDepG.pop(0)
+            #if len(bufferDepG)!=0: print bufferDepG[0]
+        #print transition
+
+
+    
+        #print out             
+    return out

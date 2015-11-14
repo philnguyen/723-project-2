@@ -85,10 +85,10 @@ def computeGraphEdgeWeights(graph, weights):
     
     for i,j in graph.edges_iter():
         graph[i][j]['weight'] = 0.   # make sure it doesn't make its way into the dot product
-        graph[i][j]['weight'] = weights.dotProduct(graph[i][j])fen
+        graph[i][j]['weight'] = weights.dotProduct(graph[i][j])
 
         
-# once we have a graph with weights on the edgegss, we need to be able
+# once we have a graph with weights on the edges, we need to be able
 # to make a prediction (i.e., compute the MST):
 def predictWeightedGraph(graph):
     # need to negate all the edge weights because we want maximum

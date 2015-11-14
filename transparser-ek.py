@@ -57,8 +57,8 @@ class Config():
                  'p_stack=' + self.stack[0]['cpos']: 1., 
                  'w_buff='  + self.buff[0]['word']: 1., 
                  'p_buff='  + self.buff[0]['cpos']: 1., 
-                 'w_pair='  + self.stack[0]['word'] + '_' +  self.buff[0]['word']): 1., 
-                 'p_pair='  + self.stack[0]['cpos'] + '_' + self.buff[0]['cpos']): 1. }
+                 'w_pair='  + self.stack[0]['word'] + '_' +  self.buff[0]['word']: 1., 
+                 'p_pair='  + self.stack[0]['cpos'] + '_' + self.buff[0]['cpos']: 1. }
  
  
 #############################################################################      

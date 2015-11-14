@@ -34,6 +34,19 @@ def predTransitionGraph(graph):
         del features['transition']
 
         # to remove the transition state from the features
+        #if predTransition!='s': print predTransition
+
+        predTransition = predTransitionSingle(features)
+        graph[i][j]['predTransition'] = ''
+        graph[i][j]['predTransition'] = predTransition
+        graph[i][j]['transition'] = trueTransition
+        #print predTransition
+        #print trueTransition
+        #print '/n'
+        #print graph[i][j]
+    return graph
+
+def predTransitionSingle(features):
         yR = weightsR.dotProduct(features) + bias[0]
         #print yR
         yL = weightsL.dotProduct(features) + bias[1]
@@ -48,15 +61,7 @@ def predTransitionGraph(graph):
         elif predTransitionVal == yL:
             predTransition = 'l'
         else: predTransition = 's'
-        #if predTransition!='s': print predTransition
-        graph[i][j]['predTransition'] = ''
-        graph[i][j]['predTransition'] = predTransition
-        graph[i][j]['transition'] = trueTransition
-        #print predTransition
-        #print trueTransition
-        #print '/n'
-        #print graph[i][j]
-    return graph
+        return predTransition
 
 def numMistakes(trueGraph, predGraph):
     # remove trueGraph as it is not required
@@ -142,40 +147,49 @@ def trainOracle(inputGraph):
         #print inputGraph.node[stacksDepG[0]]['head']
         #print bufferDepG[0]
 
-        if inputGraph.node[stacksDepG[0]]['head'] == str(bufferDepG[0]):
-            flag = True
-            bufferDepG.pop(0) # this is added again afterwards
+        if inputGraph.node[stacksDepG[0]]['head'] == str(bufferDepG[0]): 
             # left arc precondition
+            bufferDepG.pop(0) # this is added again afterwards
+            flag = True
             for i in bufferDepG:
-                #print i
-                #print inputGraph.node[i]
                 if inputGraph.node[i]['head'] == stacksDepG[0]:
                     flag = False
                     continue
             bufferDepG.insert(0,bufferTop)
-            if inputGraph.node[stacksDepG[0]]!= str(0) and flag:
-                transition = 'l'
-                # l is for left transition
-                stacksDepG.pop(0)
-                #print inputGraph.node[stacksDepG[0]]['head']
-                #print bufferDepG[0]
-
-                #print 'left'
-            #print 1
-
+            
+            if flag:
+                if inputGraph.node[stacksDepG[0]]!= str(0):
+                    transition = 'l'
+                    # l is for left transition
+                    stacksDepG.pop(0)
+            else:
+                transition = 's'
+                # s is for shift transition
+                stacksDepG.insert(0,bufferDepG[0])
+                bufferDepG.pop(0)
+            
         # if the top of the stack is the head of the first element of the buffer
-        elif inputGraph.node[bufferDepG[0]]['head'] == str(stacksDepG[0]) and stacksDepG[0] != 0:
-            transition = 'r'
-            # r is for right transition
-            bufferDepG.pop(0)
-            bufferDepG.insert(0,stacksDepG[0])
-            stacksDepG.pop(0)
-            #print inputGraph.node[bufferDepG[0]]['head']
-            #print stacksDepG[0]
-            #print 'right'
-            #print 2
-
-        else:
+        elif inputGraph.node[bufferDepG[0]]['head'] == str(stacksDepG[0]):
+            #right arc precondition
+            flag = True
+            for i in bufferDepG:
+                if inputGraph.node[i]['head'] == str(bufferDepG[0]):
+                    flag = False
+            #print flag
+            if flag == True:
+                transition = 'r'
+                # r is for right transition
+                bufferDepG.pop(0)
+                if stacksDepG[0] != 0:
+                    bufferDepG.insert(0,stacksDepG[0])
+                    stacksDepG.pop(0)    
+            else:
+                transition = 's'
+                # s is for shift transition
+                stacksDepG.insert(0,bufferDepG[0])
+                bufferDepG.pop(0)
+        else :
+            #print 6
             transition = 's'
             # s is for shift transition
             stacksDepG.insert(0,bufferDepG[0])
@@ -272,7 +286,6 @@ bias[0] -= cachedBias[0]/avgCounter
 bias[1] -= cachedBias[1]/avgCounter
 bias[2] -= cachedBias[2]/avgCounter
 
-
 # read in test filename
 for G in iterCoNLL(inputTestSet):
     #output = predicttheHeads(weightsR, weightsL, weightsS, G)
@@ -289,7 +302,7 @@ for G in iterCoNLL(inputTestSet):
         # make the transition and update the stack and the buffer
     # udpate the output file with the correct heads - copy the input file to another and update that file with the heads
 
-def predictTheHeads(G):
+def predictTheHeads(inputGraph):
     out = nx.Graph()
     bufferDepG = []
     stacksDepG = [0] # 0 corresponds to 'root'
@@ -319,39 +332,19 @@ def predictTheHeads(G):
                     #'transition': transition}
             # TODO is graph output the correct form of output
 
+        predTransition = predTransitionSingle(feats)
 
         out.add_edge(stackTop, bufferTop , feats)
 
         #print inputGraph.node[stacksDepG[0]]['head']
         #print bufferDepG[0]
 
-
-        # left transition
-        if inputGraph.node[stacksDepG[0]]['head'] == str(bufferDepG[0]):
-            flag = True
-            bufferDepG.pop(0) # this is added again afterwards
-            # left arc precondition
-            for i in bufferDepG:
-                #print i
-                #print inputGraph.node[i]
-                if inputGraph.node[i]['head'] == stacksDepG[0]:
-                    flag = False
-                    continue
-            bufferDepG.insert(0,bufferTop)
-            if inputGraph.node[stacksDepG[0]]!= str(0) and flag:
-                transition = 'l'
-                # l is for left transition
-                stacksDepG.pop(0)
-                #print inputGraph.node[stacksDepG[0]]['head']
-                #print bufferDepG[0]
-
-                #print 'left'
-            #print 1
-        # if the top of the stack is the head of the first element of the buffer
-
         # right transition
-        elif inputGraph.node[bufferDepG[0]]['head'] == str(stacksDepG[0]) and stacksDepG[0] != 0:
-            transition = 'r'
+        if predTransition == 'r':
+            inputGraph[bufferTop]['head'] = stackTop
+
+            #if inputGraph.node[bufferDepG[0]]['head'] == str(stacksDepG[0]) and stacksDepG[0] != 0:
+            #transition = 'r'
             # r is for right transition
             bufferDepG.pop(0)
             bufferDepG.insert(0,stacksDepG[0])
@@ -360,6 +353,31 @@ def predictTheHeads(G):
             #print stacksDepG[0]
             #print 'right'
             #print 2
+
+        # left transition
+        elif predTransition == 'l':
+            inputTestSet[stackTop]['head'] = bufferTop            
+            #elif inputGraph.node[stacksDepG[0]]['head'] == str(bufferDepG[0]):
+            #flag = True
+            bufferDepG.pop(0) # this is added again afterwards
+            # left arc precondition
+            #for i in bufferDepG:
+                #print i
+                #print inputGraph.node[i]
+            #    if inputGraph.node[i]['head'] == stacksDepG[0]:
+            #        flag = False
+            #        continue
+            bufferDepG.insert(0,bufferTop)
+            #if inputGraph.node[stacksDepG[0]]!= str(0) and flag:
+            #    transition = 'l'
+                # l is for left transition
+            stacksDepG.pop(0)
+                #print inputGraph.node[stacksDepG[0]]['head']
+                #print bufferDepG[0]
+
+                #print 'left'
+            #print 1
+        # if the top of the stack is the head of the first element of the buffer
 
         # shift transition
         else:

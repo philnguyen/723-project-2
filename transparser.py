@@ -23,6 +23,7 @@ class Weights(dict):
         for feat,val in x.iteritems():
             if val != 0.:
                 self[feat] += y * val
+                
 
 def predTransitionGraph(graph):
     for i,j in graph.edges_iter():
@@ -83,21 +84,27 @@ def avgPerceptronUpdate(predGraph):
 
         if  predTransition == 'r':
             weightsR.update(predGraph[i][j], -1)
+            cachedWeightsR.update(predGraph[i][j], -1*avgCounter)
             bias[0]-=1
         if  predTransition == 'l':
             weightsL.update(predGraph[i][j], -1)
+            cachedWeightsL.update(predGraph[i][j], -1*avgCounter)
             bias[1]-=1
         if  predTransition == 's':
             weightsS.update(predGraph[i][j], -1)
+            cachedWeightsS.update(predGraph[i][j], -1*avgCounter)
             bias[2]-=1
         if  transition == 'r':
             weightsR.update(predGraph[i][j], 1)
+            cachedWeightsR.update(predGraph[i][j], 1*avgCounter)
             bias[0]+=1
         if  transition == 'l':
             weightsL.update(predGraph[i][j], 1)
+            cachedWeightsL.update(predGraph[i][j], 1*avgCounter)
             bias[1]+=1
         if  transition == 's':
             weightsS.update(predGraph[i][j], 1)
+            cachedWeightsS.update(predGraph[i][j], 1*avgCounter)
             bias[2]+=1
         #print weightsS
         #print weightsL
@@ -197,6 +204,9 @@ def runOneExample(weightsR, weightsL, weightsS, trueGraph):
         #avgPerceptronUpdate(weightsR, weightsL, weightsS, predGraph)
         avgPerceptronUpdate(predGraph)
 
+    global avgCounter
+    avgCounter+=1
+
     return err
 
 def iterCoNLL(filename):
@@ -239,15 +249,22 @@ weightsR = Weights()
 weightsL = Weights()
 weightsS = Weights()
 bias = [0,0,0] #[biasR, biasL, biasS]
-cachedWeights
+cachedWeightsR = Weights()
+cachedWeightsL = Weights()
+cachedWeightsS = Weights()
+cachedBias = [0,0,0]
+avgCounter = 1.0
+
 for iteration in range(5):
-         totalErr = 0.
-         for G in iterCoNLL(inputTrainSet): 
-            totalErr += runOneExample(weightsR, weightsL, weightsS, G)
-         #print weightsR
-         #print weightsL
-         #print weightsS
-         print totalErr
+    totalErr = 0.
+    for G in iterCoNLL(inputTrainSet): 
+        totalErr += runOneExample(weightsR, weightsL, weightsS, G)
+
+    print totalErr
+
+weightsR.update(cachedWeightsR, -1.0/avgCounter)
+weightsL.update(cachedWeightsL, -1.0/avgCounter)
+weightsS.update(cachedWeightsS, -1.0/avgCounter)
 
 # read in test filename
 for G in iterCoNLL(inputTestSet):

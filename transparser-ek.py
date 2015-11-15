@@ -6,8 +6,6 @@ import numpy as np
 
 #############################################################################   
 
-
-
 def transToStr(t): 
    move = "False Move"
    if (t == shift): 
@@ -158,10 +156,10 @@ def true_next_move(config):
         for i in config.buff:
             if (topOfBuffer == config.sent.node[int(i['id'])]['head']):
                    return False
-        # for i in config.stack:
-        #    if topOfBuffer == i: continue
-        #    if (topOfBuffer == config.sent.node[int(i)]['head']):
-        #           return False   
+        for i in config.stack:
+           if topOfBuffer == i: continue
+           if (topOfBuffer == config.sent.node[int(i['id'])]['head']):
+                  return False
         return True 
     def left_precondition(config): 
          # The top of buffer is the top of stacks's head and the top of the stack is not the head
@@ -175,10 +173,10 @@ def true_next_move(config):
          for i in config.buff:
              if (topOfStack == config.sent.node[int(i['id'])]['head']):
                     return False
-         # for i in config.stack:
-         #    if topOfStack == i: continue
-         #    if (topOfStack == config.sent.node[int(i)]['head']):
-         #           return False
+         for i in config.stack:
+            if topOfStack == i: continue
+            if (topOfStack == config.sent.node[int(i['id'])]['head']):
+                   return False
          return True
          
     nextMove = shift
@@ -215,7 +213,7 @@ def arc_standard(config, weights, bias):
 
 #############################################################################  
 
-# For Training: Runs average perceptron algorithm for one instance. 
+# For Training: Runs avg perceptron algorithm for one instance. Predicts and adjustsweights for predicted moves.
 def train_instance(weights, cache, counter, bias, cacheBias, instance): 
    config = Config(instance)
 
@@ -238,6 +236,42 @@ def train_instance(weights, cache, counter, bias, cacheBias, instance):
      counter += 1
 
    return (weights, cache, counter, bias, cacheBias)
+
+
+# def numMistakes(oracle, predicted):
+#     err = 0.
+#     for o, p in oracle.sent, predicted.sent:
+#         if p.getHead != o.getHead:
+#             err += 1
+#     return err
+
+# def train_instance2(weights, cache, counter, bias, cacheBias, totalErr, instance):
+#    oracleConfig = Config(instance)
+#    config = Config(instance)
+#
+#    while (config.buff != []) and (config.buff[0]['id'] != '0') and (oracleConfig.buff != []) and (oracleConfig.buff[0]['id'] != '0'):
+#      pred_move = predict_next_move(config, weights, bias, ['ARCRIGHT', 'ARCLEFT', 'SHIFT'])
+#      true_move = true_next_move(config)
+#
+#      if pred_move != true_move:
+#         feat = config.features()
+#         weights.update(feat, -1, pred_move)
+#         weights.update(feat, 1, true_move)
+#         cache.update(feat, -1, pred_move, counter=counter)
+#         cache.update(feat, 1, true_move, counter=counter)
+#         bias[transToStr(pred_move)] -= 1
+#         bias[transToStr(true_move)] += 1
+#         cacheBias[transToStr(pred_move)] -= 1 * counter
+#         cacheBias[transToStr(true_move)] += 1 * counter
+#
+#      config = pred_move(config)
+#      oracleConfig = true_move(config)
+#      counter += 1
+#
+#    totalErr += numMistakes(oracle, predicted)
+#    return (weights, cache, counter, bias, cacheBias, totalErr)
+
+
 
 # For Test Data: Runs arc standard algorithm using weights for move predictions.   
 def test_instance(weights, bias, instance): 
@@ -287,7 +321,7 @@ def iterCoNLL(filename):
 def main(argv):
    # NOTE: change to "devFile, testFile, outFile = argv" for submission.
    # NOTE 2: currently overwrites the output currently in en.tst.out, so save somewhere else if you want that output saved.
-   dev, test, out = ['en.tr100', 'en.tst', 'en.tst.out']
+   dev, test, out = ['en.tr100', 'en.tst', 'en.tst.out.2']
    
    #delete prior output files if they exist
    if os.path.exists(out):
@@ -302,7 +336,7 @@ def main(argv):
    cacheBias = Weights()
    
    # Iterates dev file instances and runs average perceptron algorithm on each.
-   for iteration in range(5):
+   for iteration in range(100):
        for S in iterCoNLL(dev): 
           (weights, cache, counter, bias, cacheBias) = train_instance(weights, cache, counter, bias, cacheBias, S)
 

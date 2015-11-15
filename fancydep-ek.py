@@ -25,7 +25,7 @@ class Weights(dict):
        if self.has_key(idx):
            return dict.__getitem__(self, idx)
        else:
-           return .02
+           return .01
     
     def dotProduct(self, x, t):
         dot = 0.
@@ -155,6 +155,7 @@ class Config():
             btemp.insert(2, self.buff[2])
             
         feat = { 
+                #from single words
                 'u_stack0_pair='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] : 1.,
                 'u_stack0_word=' + stemp[0]['word']: 1., 
                 'u_stack0_pos=' + stemp[0]['cpos']: 1.,
@@ -171,6 +172,7 @@ class Config():
                 'u_buff2_pos=' + btemp[2]['cpos']: 1., 
                 'u_buff2_word=' + btemp[2]['word']: 1.,
                 
+                 #from word pairs
                 'w_pair00_1='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] + '_'+  btemp[0]['word'] + '_'+  btemp[0]['cpos']: 1.,
                 'w_pair00_2='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] + '_'+  btemp[0]['word'] : 1.,
                 'w_pair00_3='  + stemp[0]['word'] + '_' +  btemp[0]['word'] + '_'+  btemp[0]['cpos']: 1.,
@@ -180,8 +182,25 @@ class Config():
                 'w_pair00_7='  + stemp[0]['cpos'] + '_' +  btemp[0]['cpos']: 1.,
                 'w_pair01_8='  + btemp[0]['cpos'] + '_' +  btemp[1]['cpos']: 1.,
             
+                #from three words
                 'w_triple012_1=' + btemp[0]['cpos'] + '_' +  btemp[1]['cpos'] + '_' +  btemp[2]['cpos']: 1.,
-                'w_triple012_2=' + stemp[0]['cpos'] + '_' +  btemp[1]['cpos'] + '_' +  btemp[2]['cpos']: 1. 
+                'w_triple012_2=' + stemp[0]['cpos'] + '_' +  btemp[1]['cpos'] + '_' +  btemp[2]['cpos']: 1.,  
+                
+                #distance
+                'd_stack0_wd=' + stemp[0]['word'] + '_' + stemp[0]['id']: 1., 
+                'd_stack0_pd=' + stemp[0]['cpos'] + '_' + stemp[0]['id']: 1., 
+                'd_buff0_wd=' + btemp[0]['word'] + '_' + btemp[0]['id']: 1., 
+                'd_buff0_pd=' + btemp[0]['cpos'] + '_' + btemp[0]['id']: 1., 
+                'd_s0w_b0wd=' + stemp[0]['word'] + '_' + btemp[0]['word']+ '_' + btemp[0]['id']: 1., 
+                'd_s0p_b0pd=' + stemp[0]['cpos'] + '_' + btemp[0]['cpos']+ '_' + btemp[0]['id']: 1., 
+                
+                #valency
+                
+                #unigrams
+                
+                #third-order
+                
+                #label set
                 
                 #TODO: add other features described in paper
             }
@@ -441,7 +460,7 @@ def iterCoNLL(filename):
 def main(argv):
    # NOTE: change to "devFile, testFile, outFile = argv" for submission.
    # NOTE 2: currently overwrites the output currently in en.tst.out, so save somewhere else if you want that output saved.
-   train, test, out = ['en.tr100', 'en.dev', 'en.dev.out.2']
+   train, test, out = ['en.tr', 'en.dev', 'en.dev.out.2']
    
    #delete prior output files if they exist
    if os.path.exists(out):
@@ -456,7 +475,7 @@ def main(argv):
    cacheBias = Weights()
    
    # Iterates dev file instances and runs average perceptron algorithm on each.
-   for iteration in range(500):
+   for iteration in range(10):
        totalErr = 0.
        instances = []
        for S in iterCoNLL(train): 

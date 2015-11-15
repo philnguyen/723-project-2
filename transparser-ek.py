@@ -2,6 +2,7 @@ import networkx as nx
 import sys, os
 import operator
 import numpy as np
+import random
 
 
 #############################################################################   
@@ -21,7 +22,7 @@ class Weights(dict):
        if self.has_key(idx):
            return dict.__getitem__(self, idx)
        else:
-           return 0.
+           return .02
     
     def dotProduct(self, x, t):
         dot = 0.
@@ -119,7 +120,7 @@ class Config():
                  'p_buff='  + self.buff[0]['cpos']: 1., 
                  'w_pair='  + self.stack[0]['word'] + '_' +  self.buff[0]['word']: 1., 
                  'p_pair='  + self.stack[0]['cpos'] + '_' + self.buff[0]['cpos']: 1. }
- 
+
  
 #############################################################################      
 
@@ -155,6 +156,8 @@ def true_next_move(config):
         topOfBuffer = config.buff[0]['id']
         if (config.getTrueHead(topOfBuffer) != topOfStack):
             return False
+        if (config.getPredHead(topOfBuffer) != "_"):
+            return False
         for i in config.buff:
             if (topOfBuffer == config.sent.node[int(i['id'])]['head']):
                    return False
@@ -170,7 +173,9 @@ def true_next_move(config):
          if int(topOfStack) == 0: 
              return False
          if (config.getTrueHead(topOfStack) != topOfBuffer): 
-             return False 
+             return False
+         if (config.getPredHead(topOfStack) != "_"):
+             return False
          for i in config.buff:
              if (topOfStack == config.sent.node[int(i['id'])]['head']):
                     return False
@@ -180,10 +185,11 @@ def true_next_move(config):
          return True
          
     trueMove = shift
-    if(right_precondition(config)): 
+    if(left_precondition(config)): 
+        trueMove = arc_left
+    elif(right_precondition(config)): 
         trueMove = arc_right
-    elif(left_precondition(config)): 
-        trueMove = arc_left   
+  
     return trueMove
 
 
@@ -214,31 +220,6 @@ def arc_standard(config, weights, bias):
 #############################################################################  
 
 # For Training: Runs avg perceptron algorithm for one instance. Predicts and adjustsweights for predicted moves.
-# def train_instance(weights, cache, counter, bias, cacheBias, totalErr, instance):
-#    config = Config(instance)
-#
-#    while (config.buff != []) and (config.buff[0]['id'] != '0'):
-#      pred_move = predict_next_move(config, weights, bias, ['ARCRIGHT', 'ARCLEFT', 'SHIFT'])
-#      true_move = true_next_move(config)
-#
-#      if pred_move != true_move:
-#         feat = config.features()
-#         weights.update(feat, -1, pred_move)
-#         weights.update(feat, 1, true_move)
-#         cache.update(feat, -1, pred_move, counter=counter)
-#         cache.update(feat, 1, true_move, counter=counter)
-#         bias[transToStr(pred_move)] -= 1
-#         bias[transToStr(true_move)] += 1
-#         cacheBias[transToStr(pred_move)] -= 1 * counter
-#         cacheBias[transToStr(true_move)] += 1 * counter
-#         totalErr += 1
-#
-#      config = true_move(config)     # Execute oracle move on config.
-#      counter += 1
-#
-#    return (weights, cache, counter, bias, cacheBias, totalErr)
-
-
 def numMistakes(config):
     err = 0.
     for i in config.sent.nodes():
@@ -246,7 +227,7 @@ def numMistakes(config):
             err += 1
     return err
 
-def train_instance2(weights, cache, counter, bias, cacheBias, totalErr, instance):
+def train_instance(weights, cache, counter, bias, cacheBias, totalErr, instance):
    config = Config(instance)
    
    while (len(config.buff) > 0) and (len(config.stack) > 0):
@@ -263,12 +244,12 @@ def train_instance2(weights, cache, counter, bias, cacheBias, totalErr, instance
         bias[transToStr(true_move)] += 1
         cacheBias[transToStr(pred_move)] -= 1 * counter
         cacheBias[transToStr(true_move)] += 1 * counter
-
+        
+     counter += 1 
      config = true_move(config)
 
    config.debugger()
    totalErr += numMistakes(config)
-   counter += 1
    return (weights, cache, counter, bias, cacheBias, totalErr)
 
 
@@ -321,7 +302,7 @@ def iterCoNLL(filename):
 def main(argv):
    # NOTE: change to "devFile, testFile, outFile = argv" for submission.
    # NOTE 2: currently overwrites the output currently in en.tst.out, so save somewhere else if you want that output saved.
-   train, test, out = ['en.tr', 'en.dev', 'en.dev.out.2']
+   train, test, out = ['en.tr100', 'en.dev', 'en.dev.out.2']
    
    #delete prior output files if they exist
    if os.path.exists(out):
@@ -336,21 +317,20 @@ def main(argv):
    cacheBias = Weights()
    
    # Iterates dev file instances and runs average perceptron algorithm on each.
-   for iteration in range(3):
+   for iteration in range(500):
        totalErr = 0.
        for S in iterCoNLL(train): 
-          (weights, cache, counter, bias, cacheBias, totalErr) = train_instance2(weights, cache, counter, bias, cacheBias, totalErr, S)
-          print totalErr
+          (weights, cache, counter, bias, cacheBias, totalErr) = train_instance(weights, cache, counter, bias, cacheBias, totalErr, S)
+       print totalErr
 
    avgWeights = weights.average(cache, counter)
    avgBias = bias.average(cacheBias, counter)
     
    # Iterates test file instances. Uses the weights trained above to predict arc standard moves.
    # Then prints the predicted parse to output file. 
-   for iteration in range(3):
-       for S in iterCoNLL(test):
-           parse = test_instance(avgWeights, avgBias, S)
-           parse.pp(out)
+   for S in iterCoNLL(test):
+       parse = test_instance(avgWeights, avgBias, S)
+       parse.pp(out)
 
 
 if __name__ == "__main__":

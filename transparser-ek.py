@@ -94,16 +94,18 @@ class Config():
 
     def getTrueHead(self, idx): 
         return self.sent.node[int(idx)]['head']
+    
+    def getPredHead(self, idx): 
+        return self.sent.node[int(idx)]['predhead']
 
-    def setHead(self, head, tail): 
+    def setPredHead(self, head, tail): 
          self.sent.node[int(tail)]['predhead'] = str(head)
         
     def pp(self, out):             
         #open file and append. Note: predicted head is printed in head position.
         file = open(out, "a")
         for i in self.sent.nodes(): 
-            if self.sent.node[i]['word'] == "*root*": 
-                continue    
+            if self.sent.node[i]['word'] == "*root*": continue    
             instance = [self.sent.node[i]['id'], self.sent.node[i]['word'], self.sent.node[i]['lemma'], self.sent.node[i]['cpos'], 
             self.sent.node[i]['pos'], self.sent.node[i]['feats'], self.sent.node[i]['predhead'], self.sent.node[i]['drel'],  self.sent.node[i]['phead'], self.sent.node[i]['pdrel']]
             file.write("\t".join(instance)) 
@@ -131,7 +133,7 @@ def arc_left(config):
     # Add arc from top of buffer to top of stack. Remove top of stack.
     topOfStack = config.stack[0]['id']
     topOfBuffer = config.buff[0]['id']
-    config.setHead(topOfStack, topOfBuffer)  
+    config.setPredHead(topOfBuffer, topOfStack)  
     config.stack.pop(0)
     return config
 
@@ -139,7 +141,7 @@ def arc_right(config):
     # Add arc from top of stack to top of buffer. Remove top of buffer and move top of stack to top of buffer.
     topOfStack = config.stack[0]['id']
     topOfBuffer = config.buff[0]['id']
-    config.setHead(topOfBuffer, topOfStack)
+    config.setPredHead(topOfStack, topOfBuffer)
     config.buff.pop(0)
     config.buff.insert(0, config.stack[0])
     config.stack.pop(0)
@@ -157,7 +159,6 @@ def true_next_move(config):
             if (topOfBuffer == config.sent.node[int(i['id'])]['head']):
                    return False
         for i in config.stack:
-           if topOfBuffer == i: continue
            if (topOfBuffer == config.sent.node[int(i['id'])]['head']):
                   return False
         return True 
@@ -174,17 +175,16 @@ def true_next_move(config):
              if (topOfStack == config.sent.node[int(i['id'])]['head']):
                     return False
          for i in config.stack:
-            if topOfStack == i: continue
             if (topOfStack == config.sent.node[int(i['id'])]['head']):
                    return False
          return True
          
-    nextMove = shift
+    trueMove = shift
     if(right_precondition(config)): 
-        nextMove = arc_right
+        trueMove = arc_right
     elif(left_precondition(config)): 
-        nextMove = arc_left   
-    return nextMove
+        trueMove = arc_left   
+    return trueMove
 
 
 def predict_next_move(config, weights, bias, trans):
@@ -205,7 +205,7 @@ def predict_next_move(config, weights, bias, trans):
 
 
 def arc_standard(config, weights, bias): 
-    while (config.buff != []) and (config.buff[0]['id'] != '0'):
+    while (len(config.buff) > 0) and (len(config.stack) > 0):
         next_move = predict_next_move(config, weights, bias, ['ARCRIGHT', 'ARCLEFT', 'SHIFT'])
         config = next_move(config)   
     return config
@@ -214,42 +214,10 @@ def arc_standard(config, weights, bias):
 #############################################################################  
 
 # For Training: Runs avg perceptron algorithm for one instance. Predicts and adjustsweights for predicted moves.
-def train_instance(weights, cache, counter, bias, cacheBias, instance): 
-   config = Config(instance)
-
-   while (config.buff != []) and (config.buff[0]['id'] != '0'):
-     pred_move = predict_next_move(config, weights, bias, ['ARCRIGHT', 'ARCLEFT', 'SHIFT'])
-     true_move = true_next_move(config)
-          
-     if pred_move != true_move:
-        feat = config.features()
-        weights.update(feat, -1, pred_move)
-        weights.update(feat, 1, true_move)
-        cache.update(feat, -1, pred_move, counter=counter)
-        cache.update(feat, 1, true_move, counter=counter)
-        bias[transToStr(pred_move)] -= 1
-        bias[transToStr(true_move)] += 1
-        cacheBias[transToStr(pred_move)] -= 1 * counter
-        cacheBias[transToStr(true_move)] += 1 * counter
-
-     config = true_move(config)     # Execute oracle move on config.
-     counter += 1
-
-   return (weights, cache, counter, bias, cacheBias)
-
-
-# def numMistakes(oracle, predicted):
-#     err = 0.
-#     for o, p in oracle.sent, predicted.sent:
-#         if p.getHead != o.getHead:
-#             err += 1
-#     return err
-
-# def train_instance2(weights, cache, counter, bias, cacheBias, totalErr, instance):
-#    oracleConfig = Config(instance)
+# def train_instance(weights, cache, counter, bias, cacheBias, totalErr, instance):
 #    config = Config(instance)
 #
-#    while (config.buff != []) and (config.buff[0]['id'] != '0') and (oracleConfig.buff != []) and (oracleConfig.buff[0]['id'] != '0'):
+#    while (config.buff != []) and (config.buff[0]['id'] != '0'):
 #      pred_move = predict_next_move(config, weights, bias, ['ARCRIGHT', 'ARCLEFT', 'SHIFT'])
 #      true_move = true_next_move(config)
 #
@@ -263,13 +231,45 @@ def train_instance(weights, cache, counter, bias, cacheBias, instance):
 #         bias[transToStr(true_move)] += 1
 #         cacheBias[transToStr(pred_move)] -= 1 * counter
 #         cacheBias[transToStr(true_move)] += 1 * counter
+#         totalErr += 1
 #
-#      config = pred_move(config)
-#      oracleConfig = true_move(config)
+#      config = true_move(config)     # Execute oracle move on config.
 #      counter += 1
 #
-#    totalErr += numMistakes(oracle, predicted)
 #    return (weights, cache, counter, bias, cacheBias, totalErr)
+
+
+def numMistakes(config):
+    err = 0.
+    for i in config.sent.nodes():
+        if config.getTrueHead(i) != config.getPredHead(i):
+            err += 1
+    return err
+
+def train_instance2(weights, cache, counter, bias, cacheBias, totalErr, instance):
+   config = Config(instance)
+   
+   while (len(config.buff) > 0) and (len(config.stack) > 0):
+     pred_move = predict_next_move(config, weights, bias, ['ARCRIGHT', 'ARCLEFT', 'SHIFT'])
+     true_move = true_next_move(config)
+
+     if pred_move != true_move:
+        feat = config.features()
+        weights.update(feat, -1, pred_move)
+        weights.update(feat, 1, true_move)
+        cache.update(feat, -1, pred_move, counter=counter)
+        cache.update(feat, 1, true_move, counter=counter)
+        bias[transToStr(pred_move)] -= 1
+        bias[transToStr(true_move)] += 1
+        cacheBias[transToStr(pred_move)] -= 1 * counter
+        cacheBias[transToStr(true_move)] += 1 * counter
+
+     config = true_move(config)
+
+   config.debugger()
+   totalErr += numMistakes(config)
+   counter += 1
+   return (weights, cache, counter, bias, cacheBias, totalErr)
 
 
 
@@ -321,7 +321,7 @@ def iterCoNLL(filename):
 def main(argv):
    # NOTE: change to "devFile, testFile, outFile = argv" for submission.
    # NOTE 2: currently overwrites the output currently in en.tst.out, so save somewhere else if you want that output saved.
-   dev, test, out = ['en.tr100', 'en.tst', 'en.tst.out.2']
+   train, test, out = ['en.tr', 'en.dev', 'en.dev.out.2']
    
    #delete prior output files if they exist
    if os.path.exists(out):
@@ -329,23 +329,25 @@ def main(argv):
    else:
        print("Can't remove %s file." % out)
    
-   counter = 1
+   counter = 1.
    weights = Weights()
    bias = Weights()
    cache = Weights()
    cacheBias = Weights()
    
    # Iterates dev file instances and runs average perceptron algorithm on each.
-   for iteration in range(100):
-       for S in iterCoNLL(dev): 
-          (weights, cache, counter, bias, cacheBias) = train_instance(weights, cache, counter, bias, cacheBias, S)
+   for iteration in range(3):
+       totalErr = 0.
+       for S in iterCoNLL(train): 
+          (weights, cache, counter, bias, cacheBias, totalErr) = train_instance2(weights, cache, counter, bias, cacheBias, totalErr, S)
+          print totalErr
 
    avgWeights = weights.average(cache, counter)
    avgBias = bias.average(cacheBias, counter)
     
    # Iterates test file instances. Uses the weights trained above to predict arc standard moves.
    # Then prints the predicted parse to output file. 
-   for iteration in range(5):
+   for iteration in range(3):
        for S in iterCoNLL(test):
            parse = test_instance(avgWeights, avgBias, S)
            parse.pp(out)

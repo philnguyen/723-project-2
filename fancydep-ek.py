@@ -3,8 +3,11 @@ import sys, os
 import operator
 import numpy as np
 import random
+from collections import defaultdict
 
 
+#############################################################################   
+# at 68% right now on dev with entr100
 #############################################################################   
 
 def transToStr(t): 
@@ -113,14 +116,151 @@ class Config():
             file.write("\n") 
         file.write("\n")                 
            
-    def features(self):
+    def defFeatures(self):
         return { 'w_stack=' + self.stack[0]['word']: 1., 
                  'p_stack=' + self.stack[0]['cpos']: 1., 
                  'w_buff='  + self.buff[0]['word']: 1., 
                  'p_buff='  + self.buff[0]['cpos']: 1., 
                  'w_pair='  + self.stack[0]['word'] + '_' +  self.buff[0]['word']: 1., 
                  'p_pair='  + self.stack[0]['cpos'] + '_' + self.buff[0]['cpos']: 1. }
+ 
+    def features(self):  
+        stemp = []
+        btemp = []
 
+        if (len(self.stack) == 1): 
+            stemp.insert(0, self.stack[0])
+            stemp.insert(1, {'cpos': "<s>", 'word': "<s>"})
+            stemp.insert(2, {'cpos': "<s>", 'word': "<s>"})
+        elif (len(self.stack) == 2): 
+            stemp.insert(0, self.stack[0])
+            stemp.insert(1, self.stack[1])
+            stemp.insert(2, {'cpos': "<s>", 'word': "<s>"})
+        elif (len(self.stack) >= 3): 
+            stemp.insert(0, self.stack[0])
+            stemp.insert(1, self.stack[1])
+            stemp.insert(2, self.stack[2])
+        
+        if (len(self.buff) == 1): 
+            btemp.insert(0, self.buff[0])
+            btemp.insert(1, {'cpos': "<s>", 'word': "<s>"})
+            btemp.insert(2, {'cpos': "<s>", 'word': "<s>"})
+        elif (len(self.buff) == 2):
+            btemp.insert(0, self.buff[0])
+            btemp.insert(1, self.buff[1])
+            btemp.insert(2, {'cpos': "<s>", 'word': "<s>"}) 
+        elif (len(self.buff) >= 3):
+            btemp.insert(0, self.buff[0])
+            btemp.insert(1, self.buff[1])
+            btemp.insert(2, self.buff[2])
+            
+        feat = { 
+                'u_stack0_pair='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] : 1.,
+                'u_stack0_word=' + stemp[0]['word']: 1., 
+                'u_stack0_pos=' + stemp[0]['cpos']: 1.,
+                
+                'u_buff0_pair='  + btemp[0]['word'] + '_' + btemp[0]['cpos'] : 1., 
+                'u_buff0_pos=' + btemp[0]['cpos']: 1., 
+                'u_buff0_word=' + btemp[0]['word']: 1.,
+                
+                'u_buff1_pair='  + btemp[1]['word'] + '_' + btemp[1]['cpos'] : 1., 
+                'u_buff1_pos=' + btemp[1]['cpos']: 1., 
+                'u_buff1_word=' + btemp[1]['word']: 1.,
+                
+                'u_buff2_pair='  + btemp[2]['word'] + '_' + btemp[2]['cpos'] : 1., 
+                'u_buff2_pos=' + btemp[2]['cpos']: 1., 
+                'u_buff2_word=' + btemp[2]['word']: 1.,
+                
+                'w_pair00_1='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] + '_'+  btemp[0]['word'] + '_'+  btemp[0]['cpos']: 1.,
+                'w_pair00_2='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] + '_'+  btemp[0]['word'] : 1.,
+                'w_pair00_3='  + stemp[0]['word'] + '_' +  btemp[0]['word'] + '_'+  btemp[0]['cpos']: 1.,
+                'w_pair00_4='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] + '_'+  btemp[0]['cpos'] : 1.,
+                'w_pair00_5='  + stemp[0]['cpos'] + '_' +  btemp[0]['word'] + '_'+  btemp[0]['cpos']: 1.,
+                'w_pair00_6='  + stemp[0]['word'] + '_' +  btemp[0]['word']: 1.,
+                'w_pair00_7='  + stemp[0]['cpos'] + '_' +  btemp[0]['cpos']: 1.,
+                'w_pair01_8='  + btemp[0]['cpos'] + '_' +  btemp[1]['cpos']: 1.,
+            
+                'w_triple012_1=' + btemp[0]['cpos'] + '_' +  btemp[1]['cpos'] + '_' +  btemp[2]['cpos']: 1.,
+                'w_triple012_2=' + stemp[0]['cpos'] + '_' +  btemp[1]['cpos'] + '_' +  btemp[2]['cpos']: 1. 
+                
+                #TODO: add other features described in paper
+            }
+     
+        return feat
+ 
+    def oldfeatures(self):         
+        unigram_feat = { 
+                'u_stack_id=' + self.stack[0]['id']: 1., 
+                'u_stack_word=' + self.stack[0]['word']: 1., 
+                'u_stack_pos=' + self.stack[0]['cpos']: 1.,
+                'u_buff_id=' + self.buff[0]['id']: 1., 
+                'u_buff_word=' + self.buff[0]['word']: 1., 
+                'u_buff_pos=' + self.buff[0]['cpos']: 1.,
+                'u_pair_id='  + self.stack[0]['id'] + '_' +  self.buff[0]['id']: 1., 
+                'u_pair_word='  + self.stack[0]['word'] + '_' +  self.buff[0]['word']: 1.,
+                'u_pair_pos='  + self.stack[0]['pos'] + '_' +  self.buff[0]['pos']: 1.}
+                
+        if len(self.stack) > 1: 
+            bigram_feat = {
+                'b_stack_id=' + self.stack[0]['id'] + '_' +  self.stack[1]['id']: 1., 
+                'b_stack_word=' + self.stack[0]['word'] + '_' +  self.stack[1]['word']: 1., 
+                'b_stack_pos=' + self.stack[0]['pos'] + '_' +  self.stack[1]['pos']: 1.
+            }
+        else: 
+            bigram_feat = {
+                'b_stack_id=' + self.stack[0]['id'] + '_' +  "<s>": 1., 
+                'b_stack_word=' + self.stack[0]['word'] + '_' +  "<s>": 1., 
+                'b_stack_pos=' + self.stack[0]['pos'] + '_' +  "<s>": 1.
+            }
+            
+        if len(self.buff) > 1: 
+            bigram_feat = { 
+                'b_buff_id=' + self.buff[0]['id'] + '_' +  self.buff[1]['id']: 1., 
+                'b_buff_word=' + self.buff[0]['word'] + '_' +  self.buff[1]['word']: 1., 
+                'b_buff_pos=' + self.buff[0]['pos'] + '_' +  self.buff[1]['pos']: 1. }
+        else: 
+            bigram_feat = {
+                'b_buff_id=' + self.buff[0]['id'] + '_' +  "<s>": 1., 
+                'b_buff_word=' + self.buff[0]['word'] + '_' +  "<s>": 1., 
+                'b_buff_pos=' + self.buff[0]['pos'] + '_' +  "<s>": 1. }
+            
+        # if len(self.buff > 1) and len(self.stack > 1):
+        if len(self.stack) > 2: 
+            trigram_feat = { 
+                't_stack_id=' + self.stack[0]['id'] + '_' +  self.stack[1]['id'] + '_' +  self.stack[2]['id']: 1., 
+                't_stack_word=' + self.stack[0]['word'] + '_' +  self.stack[1]['word'] + '_' +  self.stack[2]['word']: 1., 
+                't_stack_pos=' + self.stack[0]['pos'] + '_' +  self.stack[1]['pos'] + '_' +  self.stack[2]['pos']: 1. }
+        elif (len(self.stack) == 2): 
+            trigram_feat = { 
+                't_stack_id=' + self.stack[0]['id'] + '_' +  self.stack[1]['id'] + '_' +  "<s>": 1., 
+                't_stack_word=' + self.stack[0]['word'] + '_' +  self.stack[1]['word'] + '_' +  "<s>": 1., 
+                't_stack_pos=' + self.stack[0]['pos'] + '_' +  self.stack[1]['pos'] + '_' +  "<s>": 1. }
+        else: 
+            trigram_feat = { 
+                't_stack_id=' + self.stack[0]['id'] + '_' +  "<s>" + '_' +  "<s>": 1., 
+                't_stack_word=' + self.stack[0]['word'] + '_' +  "<s>" + '_' +  "<s>": 1., 
+                't_stack_pos=' + self.stack[0]['pos'] + '_' +  "<s>" + '_' + "<s>": 1. }
+            
+        if len(self.buff) > 2: 
+            trigram_feat = { 
+                't_buff_id=' + self.buff[0]['id'] + '_' +  self.buff[1]['id'] + '_' +  self.buff[2]['id']: 1., 
+                't_buff_word=' + self.buff[0]['word'] + '_' +  self.buff[1]['word'] + '_' +  self.buff[2]['word']: 1., 
+                't_buff_pos=' + self.buff[0]['pos'] + '_' +  self.buff[1]['pos'] + '_' +  self.buff[2]['pos']: 1. }
+        elif (len(self.buff) == 2): 
+            trigram_feat = { 
+                't_buff_id=' + self.buff[0]['id'] + '_' +  self.buff[1]['id'] + '_' +  "<s>": 1., 
+                't_buff_word=' + self.buff[0]['word'] + '_' +  self.buff[1]['word'] + '_' +  "<s>": 1., 
+                't_buff_pos=' + self.buff[0]['pos'] + '_' +  self.buff[1]['pos'] + '_' +  "<s>": 1. }
+        else: 
+            trigram_feat = { 
+                't_buff_id=' + self.buff[0]['id'] + '_' +  "<s>" + '_' +  "<s>": 1., 
+                't_buff_word=' + self.buff[0]['word'] + '_' +  "<s>" + '_' +  "<s>": 1., 
+                't_buff_pos=' + self.buff[0]['pos'] + '_' +  "<s>" + '_' +  "<s>": 1. }
+                
+        # if len(self.buff > 2) and len(self.stack > 2):
+        #     trigram_feat = {}
+            
+        return dict(unigram_feat.items() + bigram_feat.items() + trigram_feat.items())
  
 #############################################################################      
 
@@ -298,7 +438,6 @@ def iterCoNLL(filename):
     h.close()
 
 
-    
 def main(argv):
    # NOTE: change to "devFile, testFile, outFile = argv" for submission.
    # NOTE 2: currently overwrites the output currently in en.tst.out, so save somewhere else if you want that output saved.
@@ -319,8 +458,14 @@ def main(argv):
    # Iterates dev file instances and runs average perceptron algorithm on each.
    for iteration in range(500):
        totalErr = 0.
+       instances = []
        for S in iterCoNLL(train): 
-          (weights, cache, counter, bias, cacheBias, totalErr) = train_instance(weights, cache, counter, bias, cacheBias, totalErr, S)
+           instances.append(S)
+       print len(instances)
+       for i in range(len(instances)): 
+           S = random.choice(instances)   #randomize training instances for each iteration
+           instances.remove(S)
+           (weights, cache, counter, bias, cacheBias, totalErr) = train_instance(weights, cache, counter, bias, cacheBias, totalErr, S)
        print totalErr
 
    avgWeights = weights.average(cache, counter)

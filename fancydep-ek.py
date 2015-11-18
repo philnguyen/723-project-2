@@ -6,7 +6,7 @@ import random
 
 
 #############################################################################   
-# 
+
 #############################################################################   
 
 def transToStr(t): 
@@ -24,7 +24,7 @@ class Weights(dict):
        if self.has_key(idx):
            return dict.__getitem__(self, idx)
        else:
-           return .01
+           return random.uniform(0,.01)
     
     def dotProduct(self, x, t):
         dot = 0.
@@ -115,140 +115,113 @@ class Config():
             file.write("\n") 
         file.write("\n")                 
 
-    # def getModifiers(self, list, idx):
-    #     modifiers = []
-    #     for i in list:
-    #         if train:
-    #             if i['head'] == idx:
-    #                 modifiers.append(i)
-    #         else:
-    #             if i['predhead'] == idx:
-    #                 modifiers.append(i)
-    #     return modifiers
-                
+    # Returns current config's features.                    
     def features(self):  
         stemp = []
         btemp = []
         
         stemp.insert(0, self.stack[0])
         btemp.insert(0, self.buff[0])
-
-        # Getting modifier info
-        # smodl = self.getModifiers(self.stack, self.stack[0]['id'], train)
-#         smodr = self.getModifiers(self.buff, self.stack[0]['id'], train)
-#         bmodr = self.getModifiers(self.buff, self.buff[0]['id'])
-#         bmodl = self.getModifiers(self.stack, self.buff[0]['id'], train)
-#
-#
-#         if len(smodl) > 0:
-#             stemp[0]['vl'] = str(len(smodl))
-#             stemp[0]['lm_cpos'] = smodl[0]['cpos']
-#         else:
-#             stemp[0]['vl'] = str(len(smodl))
-#             stemp[0]['lm_cpos'] = "<s>"
-#
-#         if len(smodr) > 0:
-#             stemp[0]['vr'] = str(len(smodr))
-#             stemp[0]['rm_cpos'] = smodr[-1]['cpos']
-#         else:
-#             stemp[0]['vr'] = str(len(smodr))
-#             stemp[0]['rm_cpos'] = "<s>"
-#
-#         if len(bmodl) > 0:
-#             btemp[0]['vl'] = str(len(bmodl))
-#             btemp[0]['lm_cpos'] = bmodl[0]['cpos']
-#         else:
-#             btemp[0]['vl'] = str(len(bmodl))
-#             btemp[0]['lm_cpos'] = "<s>"
-#
-#         if len(bmodr) > 0:
-#             btemp[0]['vr'] = str(len(bmodr))
-#             btemp[0]['rm_cpos'] = bmodr[-1]['cpos']
-#         else:
-#             btemp[0]['vr'] = str(len(bmodr))
-#             btemp[0]['rm_cpos'] = "<s>"
-
+        
+        # getting distance between top of stack and buffer
+        dist = str(abs(int(self.stack[0]['id']) - int(self.buff[0]['id'])))
+        stemp[0]['dist'] = dist
+        btemp[0]['dist'] = dist
 
         if (len(self.stack) == 1): 
-            stemp.insert(1, {'cpos': "<s>", 'word': "<s>"})
-            stemp.insert(2, {'cpos': "<s>", 'word': "<s>"})
+            stemp.insert(1, {'cpos': "<s>", 'word': "<s>", 'pos': "<s>"})
+            stemp.insert(2, {'cpos': "<s>", 'word': "<s>", 'pos': "<s>"})
         elif (len(self.stack) == 2): 
             stemp.insert(1, self.stack[1])
-            stemp.insert(2, {'cpos': "<s>", 'word': "<s>"})
+            stemp.insert(2, {'cpos': "<s>", 'word': "<s>", 'pos': "<s>"})
         elif (len(self.stack) >= 3): 
             stemp.insert(1, self.stack[1])
             stemp.insert(2, self.stack[2])
         
         if (len(self.buff) == 1): 
-            btemp.insert(1, {'cpos': "<s>", 'word': "<s>"})
-            btemp.insert(2, {'cpos': "<s>", 'word': "<s>"})
+            btemp.insert(1, {'cpos': "<s>", 'word': "<s>", 'pos': "<s>"})
+            btemp.insert(2, {'cpos': "<s>", 'word': "<s>", 'pos': "<s>"})
         elif (len(self.buff) == 2):
             btemp.insert(1, self.buff[1])
-            btemp.insert(2, {'cpos': "<s>", 'word': "<s>"}) 
+            btemp.insert(2, {'cpos': "<s>", 'word': "<s>", 'pos': "<s>"}) 
         elif (len(self.buff) >= 3):
             btemp.insert(1, self.buff[1])
             btemp.insert(2, self.buff[2])
             
         feat = { 
-                #from single words
-                'u_stack0_pair='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] : 1.,
-                'u_stack0_word=' + stemp[0]['word']: 1., 
-                'u_stack0_pos=' + stemp[0]['cpos']: 1.,
+                #from single words [CPOS]
+                # 'u_stack0_pair='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] : 1.,
+                # 'u_stack0_word=' + stemp[0]['word']: 1.,
+                # 'u_stack0_pos=' + stemp[0]['cpos']: 1.,
+                #
+                # 'u_buff0_pair='  + btemp[0]['word'] + '_' + btemp[0]['cpos'] : 1.,
+                # 'u_buff0_pos=' + btemp[0]['cpos']: 1.,
+                # 'u_buff0_word=' + btemp[0]['word']: 1.,
+                #
+                # 'u_buff1_pair='  + btemp[1]['word'] + '_' + btemp[1]['cpos'] : 1.,
+                # 'u_buff1_pos=' + btemp[1]['cpos']: 1.,
+                # 'u_buff1_word=' + btemp[1]['word']: 1.,
+                #
+                # 'u_buff2_pair='  + btemp[2]['word'] + '_' + btemp[2]['cpos'] : 1.,
+                # 'u_buff2_pos=' + btemp[2]['cpos']: 1.,
+                # 'u_buff2_word=' + btemp[2]['word']: 1.,
                 
-                'u_buff0_pair='  + btemp[0]['word'] + '_' + btemp[0]['cpos'] : 1., 
-                'u_buff0_pos=' + btemp[0]['cpos']: 1., 
-                'u_buff0_word=' + btemp[0]['word']: 1.,
-                
-                'u_buff1_pair='  + btemp[1]['word'] + '_' + btemp[1]['cpos'] : 1., 
-                'u_buff1_pos=' + btemp[1]['cpos']: 1., 
-                'u_buff1_word=' + btemp[1]['word']: 1.,
-                
-                'u_buff2_pair='  + btemp[2]['word'] + '_' + btemp[2]['cpos'] : 1., 
-                'u_buff2_pos=' + btemp[2]['cpos']: 1., 
-                'u_buff2_word=' + btemp[2]['word']: 1.,
-                
-                 #from word pairs
-                'w_pair00_1='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] + '_'+  btemp[0]['word'] + '_'+  btemp[0]['cpos']: 1.,
-                'w_pair00_2='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] + '_'+  btemp[0]['word'] : 1.,
-                'w_pair00_3='  + stemp[0]['word'] + '_' +  btemp[0]['word'] + '_'+  btemp[0]['cpos']: 1.,
-                'w_pair00_4='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] + '_'+  btemp[0]['cpos'] : 1.,
-                'w_pair00_5='  + stemp[0]['cpos'] + '_' +  btemp[0]['word'] + '_'+  btemp[0]['cpos']: 1.,
-                'w_pair00_6='  + stemp[0]['word'] + '_' +  btemp[0]['word']: 1.,
-                'w_pair00_7='  + stemp[0]['cpos'] + '_' +  btemp[0]['cpos']: 1.,
-                'w_pair01_8='  + btemp[0]['cpos'] + '_' +  btemp[1]['cpos']: 1.,
-             
-                # #from three words
-                'w_triple012_1=' + btemp[0]['cpos'] + '_' +  btemp[1]['cpos'] + '_' +  btemp[2]['cpos']: 1.,
-                'w_triple012_2=' + stemp[0]['cpos'] + '_' +  btemp[0]['cpos'] + '_' +  btemp[1]['cpos']: 1.,
-                # 'w_triple_s0pslpb0p_4=' + stemp[0]['cpos'] + '_' +  stemp[0]['lm_cpos'] + '_' +  btemp[0]['cpos']: 1.,
-                # 'w_triple_s0psrpn0p_5=' + stemp[0]['cpos'] + '_' +  stemp[0]['rm_cpos'] + '_' +  btemp[0]['cpos']: 1.,
-                # 'w_triple_s0pn0pn0lp_5=' + stemp[0]['cpos'] + '_' +  btemp[0]['cpos'] + '_' +  btemp[0]['lm_cpos']: 1.,
-                # 'w_tripleh00_3=' + stemp[0]['head'] + '_' +  stemp[0]['cpos'] + '_' +  btemp[0]['cpos']: 1.,
-#
-#                 #distance
-                'd_stack0_wd=' + stemp[0]['word'] + '_' + stemp[0]['id']: 1.,
-                'd_stack0_pd=' + stemp[0]['cpos'] + '_' + stemp[0]['id']: 1.,
-                'd_buff0_wd=' + btemp[0]['word'] + '_' + btemp[0]['id']: 1.,
-                'd_buff0_pd=' + btemp[0]['cpos'] + '_' + btemp[0]['id']: 1.,
-                'd_s0w_b0wd=' + stemp[0]['word'] + '_' + btemp[0]['word']+ '_' + btemp[0]['id']: 1.,
-                'd_s0p_b0pd=' + stemp[0]['cpos'] + '_' + btemp[0]['cpos']+ '_' + btemp[0]['id']: 1.,
-#
-#
-#                 #valency (number of left and right modifiers separately, calling them left valency and right valency)
-                # 'v_s0wvr_1=' + stemp[0]['word'] + stemp[0]['vr']: 1.,
-                # 'v_s0pvr_1=' + stemp[0]['cpos'] + stemp[0]['vr']: 1.,
-                # 'v_s0wvl_1=' + stemp[0]['word'] + stemp[0]['vl']: 1.,
-                # 'v_s0pvl_1=' + stemp[0]['cpos'] + stemp[0]['vl']: 1.,
-                # 'v_n0wvl_1=' + btemp[0]['word'] + btemp[0]['vl']: 1.,
-                # 'v_n0wvr_1=' + btemp[0]['word'] + btemp[0]['vr']: 1.,
+                #from single words [POS]
+                'u_stack0_pair='  + stemp[0]['word'] + '_' + stemp[0]['pos'] : 1.,
+                'u_stack0_pos=' + stemp[0]['pos']: 1.,
 
-#                 #unigrams (The head, left/rightmost modifiers of S0 and the leftmost modifier of N0)
-                # 'v_s0wvr_1=' + stemp[0]['word'] + stemp[0]['vr']: 1.,
-                # 'v_s0pvr_1=' + stemp[0]['cpos'] + stemp[0]['vr']: 1.,
-                # 'v_s0wvl_1=' + stemp[0]['word'] + stemp[0]['vl']: 1.,
-                # 'v_s0pvl_1=' + stemp[0]['cpos'] + stemp[0]['vl']: 1.,
-                # 'v_n0wvl_1=' + btemp[0]['word'] + btemp[0]['vl']: 1.,
-                # 'v_n0wvr_1=' + btemp[0]['word'] + btemp[0]['vr']: 1.
+                'u_buff0_pair='  + btemp[0]['word'] + '_' + btemp[0]['pos'] : 1.,
+                'u_buff0_pos=' + btemp[0]['pos']: 1.,
+
+                'u_buff1_pair='  + btemp[1]['word'] + '_' + btemp[1]['pos'] : 1.,
+                'u_buff1_pos=' + btemp[1]['pos']: 1.,
+
+                'u_buff2_pair='  + btemp[2]['word'] + '_' + btemp[2]['pos'] : 1.,
+                'u_buff2_pos=' + btemp[2]['pos']: 1.,
+                
+                 #from word pairs [CPOS]
+                # 'w_pair00_1='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] + '_'+  btemp[0]['word'] + '_'+  btemp[0]['cpos']: 1.,
+                # 'w_pair00_2='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] + '_'+  btemp[0]['word'] : 1.,
+                # 'w_pair00_3='  + stemp[0]['word'] + '_' +  btemp[0]['word'] + '_'+  btemp[0]['cpos']: 1.,
+                # 'w_pair00_4='  + stemp[0]['word'] + '_' + stemp[0]['cpos'] + '_'+  btemp[0]['cpos'] : 1.,
+                # 'w_pair00_5='  + stemp[0]['cpos'] + '_' +  btemp[0]['word'] + '_'+  btemp[0]['cpos']: 1.,
+                # 'w_pair00_6='  + stemp[0]['word'] + '_' +  btemp[0]['word']: 1.,
+                # 'w_pair00_7='  + stemp[0]['cpos'] + '_' +  btemp[0]['cpos']: 1.,
+                # 'w_pair01_8='  + btemp[0]['cpos'] + '_' +  btemp[1]['cpos']: 1.,
+                
+                 #from word pairs [POS]
+                'w_pair00_1='  + stemp[0]['word'] + '_' + stemp[0]['pos'] + '_'+  btemp[0]['word'] + '_'+  btemp[0]['pos']: 1.,
+                'w_pair00_2='  + stemp[0]['word'] + '_' + stemp[0]['pos'] + '_'+  btemp[0]['word'] : 1.,
+                'w_pair00_3='  + stemp[0]['word'] + '_' +  btemp[0]['word'] + '_'+  btemp[0]['pos']: 1.,
+                'w_pair00_4='  + stemp[0]['word'] + '_' + stemp[0]['pos'] + '_'+  btemp[0]['pos'] : 1.,
+                'w_pair00_5='  + stemp[0]['pos'] + '_' +  btemp[0]['word'] + '_'+  btemp[0]['pos']: 1.,
+                'w_pair00_6='  + stemp[0]['word'] + '_' +  btemp[0]['word']: 1.,
+                'w_pair00_7='  + stemp[0]['pos'] + '_' +  btemp[0]['pos']: 1.,
+                'w_pair01_8='  + btemp[0]['pos'] + '_' +  btemp[1]['pos']: 1.,
+             
+                # from three words[CPOS]
+                # 'w_triple012_1=' + btemp[0]['cpos'] + '_' +  btemp[1]['cpos'] + '_' +  btemp[2]['cpos']: 1.,
+                # 'w_triple012_2=' + stemp[0]['cpos'] + '_' +  btemp[0]['cpos'] + '_' +  btemp[1]['cpos']: 1.,
+                
+                 # from three words [POS]
+                'w_triple012_1=' + btemp[0]['pos'] + '_' +  btemp[1]['pos'] + '_' +  btemp[2]['pos']: 1.,
+                'w_triple012_2=' + stemp[0]['pos'] + '_' +  btemp[0]['pos'] + '_' +  btemp[1]['pos']: 1.,
+
+                # distance [CPOS]
+                # 'd_stack0_wd=' + stemp[0]['word'] + '_' + dist: 1.,
+                # 'd_stack0_pd=' + stemp[0]['cpos'] + '_' + dist: 1.,
+                # 'd_buff0_wd=' + btemp[0]['word'] + '_' + dist: 1.,
+                # 'd_buff0_pd=' + btemp[0]['cpos'] + '_' + dist: 1.,
+                # 'd_s0w_b0wd=' + stemp[0]['word'] + '_' + btemp[0]['word']+ '_' + dist: 1.,
+                # 'd_s0p_b0pd=' + stemp[0]['cpos'] + '_' + btemp[0]['cpos']+ '_' + dist: 1.,
+                
+                # distance [POS]
+                'd_stack0_wd=' + stemp[0]['word'] + '_' + dist: 1.,
+                'd_stack0_pd=' + stemp[0]['pos'] + '_' + dist: 1.,
+                'd_buff0_wd=' + btemp[0]['word'] + '_' + dist: 1.,
+                'd_buff0_pd=' + btemp[0]['pos'] + '_' + dist: 1.,
+                'd_s0w_b0wd=' + stemp[0]['word'] + '_' + btemp[0]['word']+ '_' + dist: 1.,
+                'd_s0p_b0pd=' + stemp[0]['pos'] + '_' + btemp[0]['pos']+ '_' + dist: 1.,
 
             }
      
@@ -289,8 +262,6 @@ def true_next_move(config):
         topOfBuffer = config.buff[0]['id']
         if (config.getTrueHead(topOfBuffer) != topOfStack):
             return False
-        if (config.getPredHead(topOfBuffer) != "_"):
-            return False
         for i in config.buff:
             if (topOfBuffer == config.sent.node[int(i['id'])]['head']):
                    return False
@@ -306,8 +277,6 @@ def true_next_move(config):
          if int(topOfStack) == 0: 
              return False
          if (config.getTrueHead(topOfStack) != topOfBuffer): 
-             return False
-         if (config.getPredHead(topOfStack) != "_"):
              return False
          for i in config.buff:
              if (topOfStack == config.sent.node[int(i['id'])]['head']):
@@ -390,7 +359,7 @@ def train_instance(weights, cache, counter, bias, cacheBias, totalErr, instance)
 def test_instance(weights, bias, instance): 
     config = Config(instance)
     parse = arc_standard(config, weights, bias)
-    parse.debugger()
+    # parse.debugger()
     return parse
 
 ############################################################################# 
@@ -432,9 +401,10 @@ def iterCoNLL(filename):
 
 
 def main(argv):
-   train, test, out = ['en.tr', 'en.dev', 'en.dev.out.2']
+   # train, test, out = ['en.tr', 'en.tst', 'en.tst.fancy.out']
+   # train, test, out = ['en.tr', 'en.dev', 'en.dev.out.2']
    
-   # _, train, test, out = argv
+   _, train, test, out = argv
    
    # Deletes prior output files if they exist
    if os.path.exists(out):
@@ -449,7 +419,7 @@ def main(argv):
    cacheBias = Weights()
    
    # Iterates dev file instances and runs average perceptron algorithm on each.
-   for iteration in range(5):
+   for iteration in range(10):
        totalErr = 0.
        instances = []
        for S in iterCoNLL(train): 
@@ -458,7 +428,7 @@ def main(argv):
            S = random.choice(instances)  
            instances.remove(S)
            (weights, cache, counter, bias, cacheBias, totalErr) = train_instance(weights, cache, counter, bias, cacheBias, totalErr, S)
-       print totalErr
+       # print totalErr
 
    avgWeights = weights.average(cache, counter)
    avgBias = bias.average(cacheBias, counter)

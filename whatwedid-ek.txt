@@ -1,0 +1,31 @@
+For Part 3 of Project 2, we tried the following: 
+
+1. We trained our weights on the en.tr file instead of en.tr100. We did this because we thought the classifier could encounter
+more diverse configurations helping alleviate sparsity and enabling the model to generalize better for the test set.  We saw an
+improvement in our accuracy on the devset when doing this (going from 38% to 42%).
+
+2. We also randomized the order of the training instances, so when multiple iterations are run each iteration is highly likely
+to have an unique order. This was done at the suggestion of the CIML textbook to remove any bias that may result from the order
+of the sentences being parsed.  We saw only a small improvement on the devset when doing this. Our accuracy went from 42 to 43%.
+
+3. Next we tested the ideal number of iterations to use in training to avoid over or underfitting weights to the training data.
+Below are accuracy results for the number of iterations tested.  We ended up using 10 iterations.
+
+3 iterations - 42.61%
+5 iterations - 43.06%
+7 iterations - 43.37%
+10 iterations - 43.68%
+15 iterations - 43.33% 
+
+4. We then added the baseline features described in the Zhang and Nivre paper in Table 2. These features use larger windows of
+word and pos tags pairings, including pairs and triples from the top 2-3 elements on the buffer and stack.  These additional
+features help give more information on the state of the configuration as well as the potential parent, children or neighbors in
+the dependency tree for the words at the top of the stack and buffer.  At the suggestion of the paper we also tried including
+cpos in each of these features.  We saw an increase to 78% for POS only, 76% for CPOS only and 78% when using both. 
+
+5. Last, we added the distance features described in the Zhang and Nivre paper which add the distance between the top of the
+stack and buffer as well as combine them with the word and pos tags of each. This feature provides information on how far apart
+the words are in the sentence being parsed. This is in contrast to considering only their position on the stack or buffer (as is
+done above).  We thought this feature could help decipher long-range vs. short-range dependencies with long-range being perhaps
+less likely to get an arc than short-range.  We again saw an improvement with 80% for POS only, 78% for CPOS only, and 80% for
+both.

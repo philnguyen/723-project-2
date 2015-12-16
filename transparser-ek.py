@@ -7,6 +7,7 @@ import random
 
 #############################################################################   
 
+# Converts transition function to string 
 def transToStr(t): 
    move = "False Move"
    if (t == shift): 
@@ -22,7 +23,7 @@ class Weights(dict):
        if self.has_key(idx):
            return dict.__getitem__(self, idx)
        else:
-           return .02
+           return 0.
     
     def dotProduct(self, x, t):
         dot = 0.
@@ -36,6 +37,7 @@ class Weights(dict):
             if val != 0.:
                 self[feat, t] += y * val * counter
     
+    # Computes the average for the perceptron 
     def average(self, cache, counter):
        avg = {}
        for feat, wVal in self.iteritems():
@@ -45,18 +47,19 @@ class Weights(dict):
 
 
 class Config():  
+    #Initializes config based on passed phrase. Phrase is a list of nodes.
     def __init__(self, phrase):
         self.stack = []
         self.buff = []
         self.sent = phrase
         for i in self.sent.nodes():
-            if self.sent.node[i]['word'] == "*root*":   #add root to stack
+            if self.sent.node[i]['word'] == "*root*":   #add root node to stack
                 self.stack.append(self.sent.node[i])
             else:
-                self.buff.append(self.sent.node[i])     #all other words to buffer
+                self.buff.append(self.sent.node[i])     #all other word nodes to buffer
 
 
-    # Prints config's state
+    # For Debugging: Prints config's state
     def debugger(self, predMove=None, trueMove=None): 
         print "--------------------------------------------------------------"
         instance = None
@@ -92,7 +95,7 @@ class Config():
             print "True Move: " + move
         else: 
             print "No true move."
-
+            
     def getTrueHead(self, idx): 
         return self.sent.node[int(idx)]['head']
     
@@ -102,8 +105,9 @@ class Config():
     def setPredHead(self, head, tail): 
          self.sent.node[int(tail)]['predhead'] = str(head)
         
+    #Prints config to file.   
     def pp(self, out):             
-        #open file and append. Note: predicted head is printed in head position.
+        # Open file and append. Note: predicted head is printed in head position.
         file = open(out, "a")
         for i in self.sent.nodes(): 
             if self.sent.node[i]['word'] == "*root*": continue    
@@ -111,10 +115,11 @@ class Config():
             self.sent.node[i]['pos'], self.sent.node[i]['feats'], self.sent.node[i]['predhead'], self.sent.node[i]['drel'],  self.sent.node[i]['phead'], self.sent.node[i]['pdrel']]
             file.write("\t".join(instance)) 
             file.write("\n") 
-        file.write("\n")                 
-           
+        file.write("\n")                
+         
+    # Returns current config's features.    
     def features(self):
-        return { 'w_stack=' + self.stack[0]['word']: 1., 
+        return { 'w_stack=' + self.stack[0]['word']: 1.,     
                  'p_stack=' + self.stack[0]['cpos']: 1., 
                  'w_buff='  + self.buff[0]['word']: 1., 
                  'p_buff='  + self.buff[0]['cpos']: 1., 
@@ -124,6 +129,7 @@ class Config():
  
 #############################################################################      
 
+# Arc-standard trainsitions. 
 
 def shift(config): 
     # Move top of buffer to top of stack.
@@ -149,57 +155,54 @@ def arc_right(config):
     return config
 
 
+# Returns the true next move based on the passed configuration. 
 def true_next_move(config): 
     def right_precondition(config): 
-        # The top of the stack is the head of the top of the buffer. 
+        # Determines an arc-right move is possible...
         topOfStack = config.stack[0]['id']
         topOfBuffer = config.buff[0]['id']
-        if (config.getTrueHead(topOfBuffer) != topOfStack):
-            return False
-        if (config.getPredHead(topOfBuffer) != "_"):
+        if (config.getTrueHead(topOfBuffer) != topOfStack):   # if topOfStack is not the head of topOfBuffer
             return False
         for i in config.buff:
-            if (topOfBuffer == config.sent.node[int(i['id'])]['head']):
+            if (topOfBuffer == config.sent.node[int(i['id'])]['head']):   # if topOfBuffer is head of any other word in stack or buffer
                    return False
         for i in config.stack:
-           if (topOfBuffer == config.sent.node[int(i['id'])]['head']):
+           if (topOfBuffer == config.sent.node[int(i['id'])]['head']):      
                   return False
         return True 
     def left_precondition(config): 
-         # The top of buffer is the top of stacks's head and the top of the stack is not the head
-         # of any word currently in the buffer or stack.
+         # Determines whether an arc-left move is possible...
          topOfStack = config.stack[0]['id']
          topOfBuffer = config.buff[0]['id']
-         if int(topOfStack) == 0: 
+         if int(topOfStack) == 0:       # if topOfStack is the root, false
              return False
-         if (config.getTrueHead(topOfStack) != topOfBuffer): 
-             return False
-         if (config.getPredHead(topOfStack) != "_"):
+         if (config.getTrueHead(topOfStack) != topOfBuffer):   # if topOfBuffer is not the head of topOfStack
              return False
          for i in config.buff:
-             if (topOfStack == config.sent.node[int(i['id'])]['head']):
+             if (topOfStack == config.sent.node[int(i['id'])]['head']):   # if topOfStack is head of any other word in buffer or stack
                     return False
          for i in config.stack:
             if (topOfStack == config.sent.node[int(i['id'])]['head']):
                    return False
          return True
          
-    trueMove = shift
+    trueMove = shift    
     if(left_precondition(config)): 
         trueMove = arc_left
     elif(right_precondition(config)): 
         trueMove = arc_right
   
-    return trueMove
+    return trueMove  #Note: true move is a function.
 
-
+# Returns the predicted next move.  Next move is the argmax transition.
 def predict_next_move(config, weights, bias, trans):
     feat = config.features()
     
+    # find argmax transition
     temp = []
     for t in trans: 
-        temp.append(weights.dotProduct(feat, t) + bias[t])
-    idx = np.argmax(temp)
+        temp.append(weights.dotProduct(feat, t) + bias[t])  
+    idx = np.argmax(temp)  
     argmax = trans[idx]
     
     next_move = shift
@@ -207,9 +210,10 @@ def predict_next_move(config, weights, bias, trans):
         next_move = arc_right
     elif (argmax == "ARCLEFT"):
         next_move = arc_left
-    return next_move
+    return next_move    # note: next_move is a function
 
 
+# For test data: Run arc-standard algorithm on the passed config using weights and bias. 
 def arc_standard(config, weights, bias): 
     while (len(config.buff) > 0) and (len(config.stack) > 0):
         next_move = predict_next_move(config, weights, bias, ['ARCRIGHT', 'ARCLEFT', 'SHIFT'])
@@ -219,14 +223,14 @@ def arc_standard(config, weights, bias):
 
 #############################################################################  
 
-# For Training: Runs avg perceptron algorithm for one instance. Predicts and adjustsweights for predicted moves.
-def numMistakes(config):
-    err = 0.
-    for i in config.sent.nodes():
-        if config.getTrueHead(i) != config.getPredHead(i):
-            err += 1
-    return err
+# def numMistakes(config):
+#     err = 0.
+#     for i in config.sent.nodes():
+#         if config.getTrueHead(i) != config.getPredHead(i):
+#             err += 1
+#     return err
 
+# For training data: Runs avg perceptron algorithm for one instance. Predicts and adjustsweights for predicted moves.
 def train_instance(weights, cache, counter, bias, cacheBias, totalErr, instance):
    config = Config(instance)
    
@@ -248,10 +252,9 @@ def train_instance(weights, cache, counter, bias, cacheBias, totalErr, instance)
      counter += 1 
      config = true_move(config)
 
-   config.debugger()
-   totalErr += numMistakes(config)
+   # config.debugger()
+   # totalErr += numMistakes(config)
    return (weights, cache, counter, bias, cacheBias, totalErr)
-
 
 
 # For Test Data: Runs arc standard algorithm using weights for move predictions.   
@@ -262,10 +265,6 @@ def test_instance(weights, bias, instance):
 
 ############################################################################# 
 
-
-# Utility function & Main
-
-# Reads each phrase from file. 
 def iterCoNLL(filename):
     h = open(filename, 'r')
     G = None
@@ -300,11 +299,11 @@ def iterCoNLL(filename):
 
     
 def main(argv):
-   # NOTE: change to "devFile, testFile, outFile = argv" for submission.
-   # NOTE 2: currently overwrites the output currently in en.tst.out, so save somewhere else if you want that output saved.
-   train, test, out = ['en.tr100', 'en.dev', 'en.dev.out.2']
+   # train, test, out = ['en.tr', 'en.tst', 'en.tst.out']
    
-   #delete prior output files if they exist
+   _, train, test, out = argv
+   
+   # Delete prior output files if they exist
    if os.path.exists(out):
        os.remove(out)
    else:
@@ -317,16 +316,16 @@ def main(argv):
    cacheBias = Weights()
    
    # Iterates dev file instances and runs average perceptron algorithm on each.
-   for iteration in range(500):
+   for iteration in range(5):
        totalErr = 0.
-       for S in iterCoNLL(train): 
+       for S in iterCoNLL(train):
           (weights, cache, counter, bias, cacheBias, totalErr) = train_instance(weights, cache, counter, bias, cacheBias, totalErr, S)
-       print totalErr
+       # print totalErr
 
    avgWeights = weights.average(cache, counter)
    avgBias = bias.average(cacheBias, counter)
     
-   # Iterates test file instances. Uses the weights trained above to predict arc standard moves.
+   # Iterates test file instances. Uses the avg of the weights trained above to predict arc standard moves.
    # Then prints the predicted parse to output file. 
    for S in iterCoNLL(test):
        parse = test_instance(avgWeights, avgBias, S)
